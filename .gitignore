@@ -1,0 +1,13 @@
+# Simulator / build artifacts (cocotb + iverilog/verilator)
+sim_build/
+__pycache__/
+*.pyc
+*.vcd
+*.fst
+*.ghw
+results.xml
+# Yosys scratch output
+*.json
+# Python venv (lives in parent folder; ignored if ever placed here)
+.venv/
+venv/
