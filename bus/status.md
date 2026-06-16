@@ -6,13 +6,13 @@ this to gate each turn.
 ## Current
 
 - Module: `mac`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote first version of `rtl/mac.v` from `spec/spec.md` (signed
   multiply-accumulate with synchronous reset, clear, enable, and signed wrap-around
   arithmetic). Passed Yosys `check -assert` with 0 reported problems.
@@ -20,11 +20,15 @@ this to gate each turn.
 
 ## Verifier
 
-- Iteration: 0
-- State: `not_started`
-- Last change: Waiting on `mac` handoff.
+- Iteration: 1
+- State: `verified`
+- Last change: Added `tb/test_mac.py` and parameterized the root `Makefile` with
+  `DUT ?= mac`. Cocotb simulation passed with signed golden-model checks covering
+  reset, reset priority, clear priority, enable-hold, positive/negative products,
+  300 randomized cycles, and accumulator wrap stress. Yosys `check -assert` also
+  passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
-  output goes to `/tmp/axiom-counter-sim_build` to avoid the workspace path space.
+  output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
   local Command Line Tools C++ setup cannot compile `#include <memory>`; this is a
   host toolchain issue, not a hardware failure.
