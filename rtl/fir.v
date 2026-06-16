@@ -16,7 +16,7 @@ module fir #(
     parameter                        DATA_WIDTH = 8,
     parameter                        COEF_WIDTH = 8,
     parameter                        OUT_WIDTH  = 32,
-    parameter [N_TAPS*COEF_WIDTH-1:0] COEFFS    = {8'sd2, 8'sd4, 8'sd2, 8'sd1}
+    parameter [N_TAPS*COEF_WIDTH-1:0] COEFFS    = {8'sd1, 8'sd2, 8'sd4, 8'sd2}
 ) (
     input  wire                        clk,
     input  wire                        rst,    // synchronous, active-high
@@ -25,8 +25,8 @@ module fir #(
     output reg  signed [OUT_WIDTH-1:0]  y      // registered signed filtered output
 );
 
-    // Delay line: d[0] = most recent sample.
-    reg signed [DATA_WIDTH-1:0] d [0:N_TAPS-1];
+    // Packed delay line. Tap 0 (most recent sample) occupies the low DATA_WIDTH bits.
+    reg signed [N_TAPS*DATA_WIDTH-1:0] delay_line;
 
     // Combinational partial products and accumulation.
     // Use a wire array for products; sum in always @(*) to avoid latches.
@@ -38,8 +38,10 @@ module fir #(
         for (gi = 0; gi < N_TAPS; gi = gi + 1) begin : PRODUCTS
             // Extract signed coefficient for tap gi.
             wire signed [COEF_WIDTH-1:0] coef_i;
+            wire signed [DATA_WIDTH-1:0] sample_i;
             assign coef_i = COEFFS[gi*COEF_WIDTH +: COEF_WIDTH];
-            assign prod[gi] = d[gi] * coef_i;
+            assign sample_i = delay_line[gi*DATA_WIDTH +: DATA_WIDTH];
+            assign prod[gi] = sample_i * coef_i;
         end
     endgenerate
 
@@ -54,17 +56,13 @@ module fir #(
     end
 
     // Sequential block: single driver for d[] and y, non-blocking only.
-    integer j;
     always @(posedge clk) begin
         if (rst) begin
             y <= {OUT_WIDTH{1'b0}};
-            for (j = 0; j < N_TAPS; j = j + 1)
-                d[j] <= {DATA_WIDTH{1'b0}};
+            delay_line <= {(N_TAPS*DATA_WIDTH){1'b0}};
         end else if (en) begin
             // Shift delay line: tap N_TAPS-1 is oldest.
-            for (j = N_TAPS-1; j > 0; j = j - 1)
-                d[j] <= d[j-1];
-            d[0] <= x;
+            delay_line <= {delay_line[(N_TAPS-1)*DATA_WIDTH-1:0], x};
             y <= acc_comb;
         end
         // else: hold — no assignment needed in a clocked block
