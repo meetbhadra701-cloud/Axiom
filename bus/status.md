@@ -5,27 +5,24 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `sine_lut`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `mixer`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (quarter-wave ROM sine LUT, `ADDR_WIDTH=8`,
-  `DATA_WIDTH=8`, 64-entry ROM, quadrant decode, registered signed output) and
-  `rtl/sine_lut.v`. Yosys `check -assert` reported 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (signed DSP mixer, sync reset, enable-hold,
+  registered signed product) and `rtl/mixer.v`. Yosys `check -assert` reported
+  0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
 
-- Iteration: 1
-- State: `verified`
-- Last change: Wrote and ran `tb/test_sine_lut.py`. Cocotb simulation passed exact
-  anchors, registered-output behavior, all 256 phase values, quadrant mirrors,
-  monotonic quadrants, output range, and zero full-cycle sum. Yosys `check -assert`
-  passed with 0 reported problems.
+- Iteration: 0
+- State: `pending`
+- Last change: Awaiting first `mixer` simulation.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the

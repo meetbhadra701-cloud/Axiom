@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/sine_lut.v
-hierarchy -check -top sine_lut
+read_verilog -sv rtl/mixer.v
+hierarchy -check -top mixer
 proc
 opt
-synth -top sine_lut
+synth -top mixer
 check -assert
 stat
