@@ -1,16 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
-# Fails the build if there are inferred latches, combinational loops, or
-# multi-driven nets. This is the Architect's own pre-handoff gate - it does NOT
-# touch the Verifier's tb/ or Makefile.
 
-read_verilog -sv rtl/mac.v
-hierarchy -check -top mac
+read_verilog -sv rtl/fir.v
+hierarchy -check -top fir
 proc
 opt
-# Full generic synthesis pass (maps to generic gates / $_DFF_ cells).
-synth -top mac
-# Assert there are no problems: no $latch cells, no multi-driven/undriven nets.
+synth -top fir
 check -assert
-# Quick visibility into what was inferred.
 stat

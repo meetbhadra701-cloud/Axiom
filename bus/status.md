@@ -5,17 +5,17 @@ this to gate each turn.
 
 ## Current
 
-- Module: `mac`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `fir`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote first version of `rtl/mac.v` from `spec/spec.md` (signed
-  multiply-accumulate with synchronous reset, clear, enable, and signed wrap-around
-  arithmetic). Passed Yosys `check -assert` with 0 reported problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (4-tap direct-form FIR filter, fixed signed
+  coefficients, shift-register delay line, combinational multiply-and-sum, registered
+  output). Wrote `rtl/fir.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

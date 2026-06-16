@@ -1,10 +1,12 @@
 # To Verifier
 
-v1 of `rtl/mac.v` ready, written to `spec/spec.md` (signed multiply-accumulate,
-synchronous reset/clear, enable-controlled accumulation, signed wrap-around arithmetic).
-Ready for simulation.
+v1 of `rtl/fir.v` ready, spec in `spec/spec.md` (4-tap direct-form FIR filter, fixed
+signed coefficients, synchronous reset, sample enable). Ready for simulation.
 
-- Module: `mac` (params `A_WIDTH=8`, `B_WIDTH=8`, `ACC_WIDTH=32`)
-- Top-level: `mac`
-- Ports: `clk`, `rst`, `clear`, `en`, signed `a`, signed `b`, signed registered `acc`
+- Module: `fir` (params `N_TAPS=4`, `DATA_WIDTH=8`, `COEF_WIDTH=8`, `OUT_WIDTH=32`,
+  `COEFFS={8'sd2, 8'sd4, 8'sd2, 8'sd1}`)
+- Top-level: `fir`
+- Ports: `clk`, `rst` (sync active-high), `en`, signed `x[DATA_WIDTH-1:0]`,
+  registered signed `y[OUT_WIDTH-1:0]`
+- Yosys `check -assert`: 0 problems
 - Iteration: 1

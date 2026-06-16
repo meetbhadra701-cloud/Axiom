@@ -1,73 +1,81 @@
-# Spec - `mac`: Signed Multiply-Accumulate
+# Spec — `fir`: Parameterizable Direct-Form FIR Filter
 
-**Status:** authoritative for the current module. The previously verified counter spec is
-archived at `spec/counter.md`.
+**Status:** authoritative. Ground truth for the Architect and Verifier.
+Previous module specs archived at `spec/counter.md` and `spec/mac_spec.md`.
+Ambiguities → `bus/status.md` "Questions for Manager", not guesses.
 
 ## 1. Overview
 
-`mac` is a parameterizable signed multiply-accumulate block for DSP-style pipelines. On
-each rising edge of `clk`, it optionally clears or accumulates the signed product
-`a * b` into the registered accumulator output `acc`.
+A synchronous, direct-form, fixed-coefficient FIR (Finite Impulse Response) filter.
+On each enabled clock edge, it shifts a new input sample into an `N_TAPS`-deep delay
+line, multiplies each tap by a fixed signed coefficient, and sums all products into a
+registered output `y`.
 
-Single clock domain. All controls are synchronous and active-high.
+Single clock domain, single synchronous reset. Coefficients are compile-time parameters,
+not runtime-loadable (no coefficient RAM).
 
 ## 2. Parameters
 
-| Name        | Default | Meaning                                      |
-|-------------|---------|----------------------------------------------|
-| `A_WIDTH`   | `8`     | Signed width of input `a`.                   |
-| `B_WIDTH`   | `8`     | Signed width of input `b`.                   |
-| `ACC_WIDTH` | `32`    | Signed width of registered accumulator `acc`. |
+| Name         | Default | Meaning                                                      |
+|--------------|---------|--------------------------------------------------------------|
+| `N_TAPS`     | `4`     | Number of filter taps. Must be ≥ 1.                          |
+| `DATA_WIDTH` | `8`     | Bit width of signed input sample `x` and each delay element. |
+| `COEF_WIDTH` | `8`     | Bit width of each signed coefficient.                        |
+| `OUT_WIDTH`  | `32`    | Bit width of registered signed output `y`.                   |
 
-`ACC_WIDTH` must be greater than or equal to `A_WIDTH + B_WIDTH`.
+Coefficients are passed as a flat packed parameter `COEFFS`, declared as a
+`(N_TAPS * COEF_WIDTH)`-bit vector. Tap 0 (most recent sample) uses bits
+`[COEF_WIDTH-1:0]`, tap 1 uses `[2*COEF_WIDTH-1:COEF_WIDTH]`, etc.
+
+For the default 4-tap 8-bit case: `COEFFS = 32'h01_02_04_02` gives coefficients
+`[2, 4, 2, 1]` in that order (tap 3 … tap 0), which is a simple low-pass kernel.
 
 ## 3. Ports
 
-| Name    | Dir | Width             | Description                                      |
-|---------|-----|-------------------|--------------------------------------------------|
-| `clk`   | in  | 1                 | Clock. All state changes occur on rising edge.   |
-| `rst`   | in  | 1                 | Synchronous, active-high reset.                  |
-| `clear` | in  | 1                 | Synchronous, active-high accumulator clear.       |
-| `en`    | in  | 1                 | Accumulate enable.                               |
-| `a`     | in  | `A_WIDTH` signed  | Signed multiplicand.                             |
-| `b`     | in  | `B_WIDTH` signed  | Signed multiplier.                               |
-| `acc`   | out | `ACC_WIDTH` signed | Registered signed accumulator value.             |
+| Name  | Dir | Width        | Description                                              |
+|-------|-----|--------------|----------------------------------------------------------|
+| `clk` | in  | 1            | Clock. All state changes on rising edge.                 |
+| `rst` | in  | 1            | Synchronous, active-high reset. Clears delay line and `y`.|
+| `en`  | in  | 1            | Sample enable (active-high). Shift and compute when high. |
+| `x`   | in  | `DATA_WIDTH` | Signed input sample.                                     |
+| `y`   | out | `OUT_WIDTH`  | Registered signed filtered output.                       |
 
-`acc` is registered, not combinational.
+`y` is a registered output (driven from a flip-flop), not combinational.
 
-## 4. Behavior per rising edge
+## 4. Behavior (per rising edge of `clk`)
 
-Priority order is **reset, clear, enable, hold**:
+**Priority: reset > enable > hold.**
 
-1. If `rst == 1`, then `acc <= 0`.
-2. Else if `clear == 1`, then `acc <= 0`.
-3. Else if `en == 1`, then `acc <= acc + signed(a) * signed(b)`.
-4. Else `acc` holds its current value.
+1. If `rst == 1`:
+   - All delay-line registers `d[0..N_TAPS-1]` ← 0.
+   - Output register `y` ← 0.
+2. else if `en == 1`:
+   - Shift the delay line: `d[N_TAPS-1] ← d[N_TAPS-2]`, …, `d[1] ← d[0]`, `d[0] ← x`.
+   - Compute `y ← sum over i of (d[i] * coef[i])`, each product sign-extended to
+     `OUT_WIDTH` before summation. Result registered.
+3. else: all registers hold.
 
-The product is sign-extended to `ACC_WIDTH` before addition.
+The `d[i] * coef[i]` products and the final sum are computed combinationally from the
+registered delay line; only `y` and the delay-line registers are sequential.
 
 ## 5. Arithmetic semantics
 
-All arithmetic is two's-complement signed arithmetic. Accumulator overflow wraps modulo
-`2**ACC_WIDTH`; there is no saturation and no overflow flag.
+- `x`, `d[i]` are signed (`DATA_WIDTH` bits, two's complement).
+- `coef[i]` is signed (`COEF_WIDTH` bits, two's complement, extracted from `COEFFS`).
+- Each product is `DATA_WIDTH + COEF_WIDTH` bits wide (signed).
+- Products are sign-extended to `OUT_WIDTH` before the sum.
+- The sum and `y` are `OUT_WIDTH`-bit signed, wrapping (no saturation).
 
-For the default widths, `a` and `b` are signed 8-bit values in `[-128, 127]`, and `acc`
-is signed 32-bit.
+## 6. Reset semantics
 
-## 6. Reset and clear semantics
+- Synchronous, active-high only. Do not put `rst` in a sensitivity list.
+- Reset clears all delay-line taps and `y` to zero.
 
-- `rst` is synchronous and active-high.
-- `clear` is synchronous and active-high.
-- `rst` has priority over `clear`.
-- `clear` has priority over `en`.
-- No asynchronous reset or asynchronous clear is present.
+## 7. Synthesis constraints (CLAUDE.md §3)
 
-The accumulator value is only defined after at least one synchronous reset or clear.
-
-## 7. Synthesis constraints
-
-- Sequential state in one `always @(posedge clk)` block.
-- Non-blocking assignments for `acc`.
-- No `initial`, no delays, no inferred latches.
-- One driver for `acc`.
-- Must pass Yosys `check -assert` with zero latches, loops, or multi-driven nets.
+- Delay-line and `y` updates in a **single** `always @(posedge clk)` block.
+- Combinational sum in a separate `always @(*)` block with a default assignment
+  (no inferred latches), or as `wire` assignments.
+- Non-blocking `<=` for sequential; blocking `=` for combinational.
+- No `initial`, no `#` delays. Explicit widths throughout.
+- Must pass Yosys `check -assert` with 0 problems.
