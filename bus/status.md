@@ -6,13 +6,13 @@ this to gate each turn.
 ## Current
 
 - Module: `lfsr`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 2
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (16-bit Galois LFSR, POLY=16'hB400 for period-65535
   maximal sequence, SEED=1, Galois XOR-feedback step, sync reset, enable). Fixed v1
   feedback bit from old MSB to old LSB for the standard right-shift `16'hB400` sequence.
@@ -20,9 +20,12 @@ this to gate each turn.
 
 ## Verifier
 
-- Iteration: 1
-- State: `awaiting_rerun`
-- Last change: Filed v1 feedback-bit bug. Awaiting v2 verification rerun.
+- Iteration: 2
+- State: `verified`
+- Last change: Reran `tb/test_lfsr.py` after the v2 feedback-bit fix. Cocotb simulation
+  passed reset, reset priority, hold, first steps, randomized controls, and full 65535
+  unique-state period verification. Yosys `check -assert` passed with 0 reported
+  problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
