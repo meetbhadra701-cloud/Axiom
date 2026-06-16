@@ -1,67 +1,75 @@
-# Spec — `nco`: Numerically Controlled Oscillator (Phase Accumulator)
+# Spec — sine_lut (Sine Lookup Table)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 Previous specs archived in `spec/`.
 
-## 1. Overview
+## Purpose
 
-A synchronous Numerically Controlled Oscillator (NCO), also called a Direct Digital
-Synthesizer (DDS) phase accumulator. On each enabled clock edge it adds a frequency
-word `phase_inc` to a registered phase accumulator `phase_out`. The output frequency
-relative to `clk` is `f_out = phase_inc / 2^PHASE_WIDTH * f_clk`.
+Quarter-wave ROM-based sine lookup table. Converts a phase value from an NCO
+(or any source) into a signed sine amplitude. Completing the NCO into a full DDS
+requires mapping `phase_out[PHASE_WIDTH-1:0]` → `sin_out[DATA_WIDTH-1:0]`.
 
-The high bits of `phase_out` form a sawtooth waveform; they can index a sine LUT
-(not part of this module) to produce a sine wave. This module is the core frequency-
-synthesis primitive used in software-defined radio, tone generation, and modulation.
+The quarter-wave trick: only 2^(ADDR_WIDTH-2) entries are stored; the full cycle
+is reconstructed from quadrant symmetry.
 
-Single clock domain, synchronous reset.
+## Parameters
 
-## 2. Parameters
+| Parameter  | Default | Description |
+|---|---|---|
+| ADDR_WIDTH | 8  | Phase bits consumed. LUT depth = 2^(ADDR_WIDTH-2) = 64 entries for default. |
+| DATA_WIDTH | 8  | Output amplitude bits. Signed range: -(2^(DATA_WIDTH-1)) to +(2^(DATA_WIDTH-1)-1). |
 
-| Name          | Default | Meaning                                              |
-|---------------|---------|------------------------------------------------------|
-| `PHASE_WIDTH` | `24`    | Bit width of the phase accumulator and `phase_out`.  |
+## Ports
 
-A 24-bit accumulator gives ~0.06 Hz frequency resolution at 1 MHz clock, and supports
-output frequencies from 0 Hz (phase_inc=0) up to f_clk/2 (phase_inc = 2^23).
+| Port      | Direction | Width       | Description |
+|---|---|---|---|
+| clk       | input     | 1           | Clock. |
+| phase_in  | input     | ADDR_WIDTH  | Phase address (unsigned). Top 2 bits select quadrant. |
+| sin_out   | output    | DATA_WIDTH  | Signed sine amplitude. Registered (one-cycle latency). |
 
-## 3. Ports
+No reset port — ROM contents are static; output is valid one cycle after phase_in.
 
-| Name         | Dir | Width         | Description                                              |
-|--------------|-----|---------------|----------------------------------------------------------|
-| `clk`        | in  | 1             | Clock. All state changes on rising edge.                 |
-| `rst`        | in  | 1             | Synchronous, active-high reset. Clears `phase_out` to 0.|
-| `en`         | in  | 1             | Accumulator enable (active-high).                        |
-| `phase_inc`  | in  | `PHASE_WIDTH` | Unsigned frequency word. Added to accumulator each cycle.|
-| `phase_out`  | out | `PHASE_WIDTH` | Registered unsigned phase accumulator value.             |
+## Behaviour
 
-`phase_out` is a registered output (flip-flop), not combinational.
+Let N = 2^(ADDR_WIDTH-2) = 64 for defaults (quarter-wave depth).
+Let `quad = phase_in[ADDR_WIDTH-1:ADDR_WIDTH-2]` (top 2 bits).
+Let `idx  = phase_in[ADDR_WIDTH-3:0]` (lower ADDR_WIDTH-2 bits).
 
-## 4. Behavior (per rising edge of `clk`)
+**Quadrant decode (combinational):**
 
-Priority order: **reset > enable > hold.**
+| quad | ROM index   | Output sign |
+|------|-------------|-------------|
+| 2'b00 (Q0) | `idx`   | positive |
+| 2'b01 (Q1) | `~idx`  | positive |
+| 2'b10 (Q2) | `idx`   | negative |
+| 2'b11 (Q3) | `~idx`  | negative |
 
-1. If `rst == 1`    → `phase_out <= 0`.
-2. else if `en == 1`→ `phase_out <= phase_out + phase_inc`. Natural wrap modulo
-   `2^PHASE_WIDTH` (the adder overflows back to 0).
-3. else             → `phase_out` holds.
+**ROM contents:**
+`lut[i] = round( (2^(DATA_WIDTH-1) - 1) * sin( (i + 0.5) * pi / (2*N) ) )`
+For ADDR_WIDTH=8, DATA_WIDTH=8: N=64, amplitudes in 0..127 (unsigned in the LUT).
 
-## 5. Arithmetic semantics
+**Negation for Q2/Q3:** apply two's-complement negation to the unsigned LUT value.
+At DATA_WIDTH=8, peak stored value is 127; -127 is representable; -128 is never produced.
 
-- `phase_inc` and `phase_out` are **unsigned** integers.
-- Accumulation wraps naturally (no saturation, no overflow flag).
-- `phase_inc = 0` → accumulator holds at 0 (or any initial value after rst) → DC.
-- `phase_inc = 2^(PHASE_WIDTH-1)` → accumulator toggles between 0 and the mid-point
-  every cycle → output at Nyquist (f_clk/2).
+**Output register:** `sin_out` is registered at `posedge clk`. One-clock pipeline latency.
 
-## 6. Reset semantics
+## Synthesis notes
 
-Synchronous, active-high. `rst` must not appear in a sensitivity list.
-Clears `phase_out` to 0.
+- ROM initialised with `initial` block assigning a `reg [DATA_WIDTH-1:0] lut [0:DEPTH-1]`.
+  This is the **one permitted use of `initial`** in this project — all synthesis targets
+  (Xilinx, Intel, Lattice, Yosys) support `initial` for constant ROM content.
+- Quadrant decode is pure combinational (`wire` or `always @(*)`).
+- The registered stage is a single `always @(posedge clk)` with one `<=` assignment.
+- No reset input — this is intentional and per spec.
+- Expected Yosys `check -assert`: 0 problems.
 
-## 7. Synthesis constraints (CLAUDE.md §3)
+## Verification tip (for Verifier)
 
-- Single `always @(posedge clk)` block, non-blocking `<=` only.
-- No `initial`, no `#` delays, no inferred latches.
-- One driver for `phase_out`. Explicit bit widths.
-- Must pass Yosys `check -assert` with 0 problems.
+Key checks for ADDR_WIDTH=8, DATA_WIDTH=8 (N=64, period=256 phases):
+1. After 1 clock: `phase_in=0` → `sin_out` ≈ +3 (first bin centre is sin(π/512)×127≈0.78, rounds to 1; exact value depends on rounding).
+2. `phase_in=64`  (Q1 start, 90°) → sin_out should be close to the peak ≈ +127.
+3. `phase_in=128` (Q2 start, 180°) → sin_out close to 0 (negative side).
+4. `phase_in=192` (Q3 start, 270°) → sin_out close to -127.
+5. Full 256-cycle sweep: output is non-decreasing through Q0, non-increasing through Q1,
+   non-increasing (negative) through Q2, non-decreasing through Q3.
+6. Sum of all 256 outputs ≈ 0 (no DC bias).
