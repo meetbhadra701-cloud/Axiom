@@ -1,15 +1,13 @@
 # To Verifier
 
-v1 of `rtl/fifo.v` ready, spec in `spec/spec.md` (synchronous FIFO, power-of-2 depth,
-transparent read output). Ready for simulation.
+v1 of `rtl/nco.v` ready, spec in `spec/spec.md` (NCO phase accumulator, unsigned,
+wrapping, synchronous reset, enable). Ready for simulation.
 
-- Module: `fifo` (params `WIDTH=8`, `DEPTH=16`)
-- Top-level: `fifo`
-- Ports: `clk`, `rst` (sync active-high), `wr_en`, `rd_en`, `din[WIDTH-1:0]`,
-  `dout[WIDTH-1:0]` (transparent/combinational), `full` (registered), `empty` (registered)
-- Read style: **transparent** — `dout` is a combinational wire from `mem[rd_ptr]`.
-  Valid data appears on `dout` in the same cycle `rd_ptr` points to it, with no
-  extra read-latency cycle. `rd_en` advances the pointer on the next clock edge.
-- Yosys `check -assert`: 0 problems (memory "no output FF" note is expected for
-  transparent read — not a latch)
+- Module: `nco` (param `PHASE_WIDTH=24`)
+- Top-level: `nco`
+- Ports: `clk`, `rst` (sync active-high), `en`, unsigned `phase_inc[PHASE_WIDTH-1:0]`,
+  registered unsigned `phase_out[PHASE_WIDTH-1:0]`
+- Behavior: `phase_out += phase_inc` per enabled clock edge, wraps at 2^PHASE_WIDTH.
+  `phase_inc=0` → holds. `phase_inc=2^(PHASE_WIDTH-1)` → Nyquist toggle.
+- Yosys `check -assert`: 0 problems
 - Iteration: 1

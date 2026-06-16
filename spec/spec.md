@@ -1,91 +1,67 @@
-# Spec — `fifo`: Parameterizable Synchronous FIFO
+# Spec — `nco`: Numerically Controlled Oscillator (Phase Accumulator)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 Previous specs archived in `spec/`.
 
 ## 1. Overview
 
-A synchronous, single-clock FIFO (First-In First-Out) buffer. Data written to the FIFO
-via `wr_en` is stored and read back in the same order via `rd_en`. Status flags `full`
-and `empty` indicate when writes or reads should be withheld. Used between DSP pipeline
-stages to decouple throughput.
+A synchronous Numerically Controlled Oscillator (NCO), also called a Direct Digital
+Synthesizer (DDS) phase accumulator. On each enabled clock edge it adds a frequency
+word `phase_inc` to a registered phase accumulator `phase_out`. The output frequency
+relative to `clk` is `f_out = phase_inc / 2^PHASE_WIDTH * f_clk`.
 
-Single clock domain. All controls synchronous and active-high.
+The high bits of `phase_out` form a sawtooth waveform; they can index a sine LUT
+(not part of this module) to produce a sine wave. This module is the core frequency-
+synthesis primitive used in software-defined radio, tone generation, and modulation.
+
+Single clock domain, synchronous reset.
 
 ## 2. Parameters
 
-| Name    | Default | Meaning                                               |
-|---------|---------|-------------------------------------------------------|
-| `WIDTH` | `8`     | Bit width of each data word.                          |
-| `DEPTH` | `16`    | Number of storage locations. Must be a power of 2 ≥ 2.|
+| Name          | Default | Meaning                                              |
+|---------------|---------|------------------------------------------------------|
+| `PHASE_WIDTH` | `24`    | Bit width of the phase accumulator and `phase_out`.  |
 
-The FIFO holds up to `DEPTH` words. Address wraps modulo `DEPTH` (pointer width =
-`$clog2(DEPTH)` bits).
+A 24-bit accumulator gives ~0.06 Hz frequency resolution at 1 MHz clock, and supports
+output frequencies from 0 Hz (phase_inc=0) up to f_clk/2 (phase_inc = 2^23).
 
 ## 3. Ports
 
-| Name    | Dir | Width   | Description                                              |
-|---------|-----|---------|----------------------------------------------------------|
-| `clk`   | in  | 1       | Clock. All state changes on rising edge.                 |
-| `rst`   | in  | 1       | Synchronous, active-high reset. Clears pointers and flags.|
-| `wr_en` | in  | 1       | Write enable. Writes `din` to FIFO when high and not `full`.|
-| `rd_en` | in  | 1       | Read enable. Advances read pointer when high and not `empty`.|
-| `din`   | in  | `WIDTH` | Data input word.                                         |
-| `dout`  | out | `WIDTH` | Data output word (registered; reflects current read pointer).|
-| `full`  | out | 1       | Asserted when FIFO holds `DEPTH` words. Registered.      |
-| `full`  | out | 1       | Asserted when FIFO holds `DEPTH` words.                  |
-| `empty` | out | 1       | Asserted when FIFO holds 0 words.                        |
+| Name         | Dir | Width         | Description                                              |
+|--------------|-----|---------------|----------------------------------------------------------|
+| `clk`        | in  | 1             | Clock. All state changes on rising edge.                 |
+| `rst`        | in  | 1             | Synchronous, active-high reset. Clears `phase_out` to 0.|
+| `en`         | in  | 1             | Accumulator enable (active-high).                        |
+| `phase_inc`  | in  | `PHASE_WIDTH` | Unsigned frequency word. Added to accumulator each cycle.|
+| `phase_out`  | out | `PHASE_WIDTH` | Registered unsigned phase accumulator value.             |
+
+`phase_out` is a registered output (flip-flop), not combinational.
 
 ## 4. Behavior (per rising edge of `clk`)
 
-**Reset:**
-- If `rst == 1`: write pointer `wr_ptr ← 0`, read pointer `rd_ptr ← 0`, `count ← 0`.
-  `full ← 0`, `empty ← 1`. Memory contents are don't-care after reset (don't need
-  explicit clear).
+Priority order: **reset > enable > hold.**
 
-**Simultaneous read and write (count unchanged):**
-- If `wr_en && !full && rd_en && !empty` in the same cycle: write `din` at `wr_ptr`,
-  advance `wr_ptr`; read from `rd_ptr`, advance `rd_ptr`; `count` unchanged.
+1. If `rst == 1`    → `phase_out <= 0`.
+2. else if `en == 1`→ `phase_out <= phase_out + phase_inc`. Natural wrap modulo
+   `2^PHASE_WIDTH` (the adder overflows back to 0).
+3. else             → `phase_out` holds.
 
-**Write only:**
-- If `wr_en && !full && !(rd_en && !empty)`: write `din` at `wr_ptr`, `wr_ptr ← wr_ptr + 1`, `count ← count + 1`.
+## 5. Arithmetic semantics
 
-**Read only:**
-- If `rd_en && !empty && !(wr_en && !full)`: `rd_ptr ← rd_ptr + 1`, `count ← count - 1`.
+- `phase_inc` and `phase_out` are **unsigned** integers.
+- Accumulation wraps naturally (no saturation, no overflow flag).
+- `phase_inc = 0` → accumulator holds at 0 (or any initial value after rst) → DC.
+- `phase_inc = 2^(PHASE_WIDTH-1)` → accumulator toggles between 0 and the mid-point
+  every cycle → output at Nyquist (f_clk/2).
 
-**Hold:** no valid wr_en or rd_en — all registers hold.
-
-**Ignored operations:**
-- `wr_en` when `full` → ignored (no write, no pointer change).
-- `rd_en` when `empty` → ignored (no read, no pointer change).
-
-## 5. Output `dout`
-
-`dout` is the word at the current `rd_ptr` in the storage array, registered or read
-directly from the array. The Architect may implement as:
-- **registered read:** `dout` is a `reg` updated on the clock edge when `rd_en && !empty`, OR
-- **transparent read:** `dout` is a `wire` driven by `mem[rd_ptr]` combinationally.
-
-Either is acceptable; the Verifier's test must handle both. **Specify which you chose
-in `bus/to_verifier.md`.**
-
-## 6. `full` and `empty` flags
-
-Both are registered (driven from flip-flops, not pure combinational).
-
-- `empty` is high after reset and whenever `count == 0`.
-- `full` is high whenever `count == DEPTH`.
-- Updates take effect on the clock edge following the triggering read/write.
-
-## 7. Reset semantics
+## 6. Reset semantics
 
 Synchronous, active-high. `rst` must not appear in a sensitivity list.
+Clears `phase_out` to 0.
 
-## 8. Synthesis constraints (CLAUDE.md §3)
+## 7. Synthesis constraints (CLAUDE.md §3)
 
-- Storage array as `reg [WIDTH-1:0] mem [0:DEPTH-1]`.
-- All pointer/flag updates in a **single** `always @(posedge clk)` block.
-- Non-blocking `<=` in sequential block. No `initial`, no `#` delays.
-- No inferred latches; every combinational path has a default.
+- Single `always @(posedge clk)` block, non-blocking `<=` only.
+- No `initial`, no `#` delays, no inferred latches.
+- One driver for `phase_out`. Explicit bit widths.
 - Must pass Yosys `check -assert` with 0 problems.
-- DEPTH must be a power of 2 so pointer wrap is automatic (no comparator needed).

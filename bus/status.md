@@ -5,16 +5,16 @@ this to gate each turn.
 
 ## Current
 
-- Module: `fifo`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `nco`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (synchronous FIFO, power-of-2 depth, transparent
-  read output, registered full/empty flags) and `rtl/fifo.v`. Yosys `check -assert`
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (NCO phase accumulator, PHASE_WIDTH=24, unsigned,
+  wrapping adder, synchronous reset, enable) and `rtl/nco.v`. Yosys `check -assert`
   0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
