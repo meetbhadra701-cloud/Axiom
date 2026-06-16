@@ -12,7 +12,7 @@ this to gate each turn.
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified` — no bug report; loop closed.
 - Last change: Wrote first version of `rtl/counter.v` from `spec/spec.md` (8-bit sync
   up-counter, enable, synchronous active-high reset). Passed Yosys `check -assert`.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
