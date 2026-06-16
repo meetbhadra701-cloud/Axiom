@@ -6,13 +6,13 @@ this to gate each turn.
 ## Current
 
 - Module: `fifo`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (synchronous FIFO, power-of-2 depth, transparent
   read output, registered full/empty flags) and `rtl/fifo.v`. Yosys `check -assert`
   0 problems.
@@ -20,12 +20,12 @@ this to gate each turn.
 
 ## Verifier
 
-- Iteration: 2
+- Iteration: 1
 - State: `verified`
-- Last change: Reran `tb/test_fir.py` after the v2 coefficient-packing fix. Cocotb
-  simulation passed with reset, hold, impulse response, signed samples, randomized
-  enables/samples, and default range-edge checks. Yosys `check -assert` passed with
-  0 reported problems.
+- Last change: Added `tb/test_fifo.py` and ran Cocotb with `DUT=fifo`. Simulation
+  passed with reset, reset priority, empty-read ignore, fill/full behavior, ignored
+  full writes, simultaneous read/write, pointer wrap, drain ordering, and 500 randomized
+  cycles. Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
