@@ -6,8 +6,8 @@ this to gate each turn.
 ## Current
 
 - Module: `counter`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
@@ -19,9 +19,18 @@ this to gate each turn.
 
 ## Verifier
 
-- Iteration: 0
-- State: `not_started`
-- (Codex owns this section and sets VAULT_PATH for its own vault.)
+- Iteration: 1
+- State: `verified`
+- Last change: Added `AGENTS.md`, root `Makefile`, and `tb/test_counter.py`.
+  Cocotb simulation passed against an independent Python golden model covering reset,
+  reset priority, enable-hold, count-up, wrap-around, mid-count reset, and 200 randomized
+  cycles. Yosys `check -assert` also passed with 0 reported problems.
+- Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
+  output goes to `/tmp/axiom-counter-sim_build` to avoid the workspace path space.
+- Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
+  local Command Line Tools C++ setup cannot compile `#include <memory>`; this is a
+  host toolchain issue, not a hardware failure.
+- VAULT_PATH: /Users/meetbhadra/ FPGA project/verifier-vault
 
 ## Questions for Manager
 
