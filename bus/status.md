@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `mixer`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (signed DSP mixer, sync reset, enable-hold,
   registered signed product) and `rtl/mixer.v`. Yosys `check -assert` reported
   0 problems.
@@ -20,9 +20,12 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Verifier
 
-- Iteration: 0
-- State: `pending`
-- Last change: Awaiting first `mixer` simulation.
+- Iteration: 1
+- State: `verified`
+- Last change: Wrote and ran `tb/test_mixer.py`. Cocotb simulation passed reset,
+  reset priority, enable-hold, directed signed edge products, and 500 randomized
+  signed reference-model cycles. Yosys `check -assert` passed with 0 reported
+  problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -39,6 +42,7 @@ No human gate is required for this project unless a real external blocker appear
 - `nco`
 - `lfsr`
 - `sine_lut`
+- `mixer`
 
 ## Questions for Manager
 
