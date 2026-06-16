@@ -6,13 +6,13 @@ this to gate each turn.
 ## Current
 
 - Module: `nco`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (NCO phase accumulator, PHASE_WIDTH=24, unsigned,
   wrapping adder, synchronous reset, enable) and `rtl/nco.v`. Yosys `check -assert`
   0 problems.
@@ -22,10 +22,10 @@ this to gate each turn.
 
 - Iteration: 1
 - State: `verified`
-- Last change: Added `tb/test_fifo.py` and ran Cocotb with `DUT=fifo`. Simulation
-  passed with reset, reset priority, empty-read ignore, fill/full behavior, ignored
-  full writes, simultaneous read/write, pointer wrap, drain ordering, and 500 randomized
-  cycles. Yosys `check -assert` passed with 0 reported problems.
+- Last change: Added `tb/test_nco.py` and ran Cocotb with `DUT=nco`. Simulation passed
+  with reset, reset priority, hold, zero increment, basic accumulation, explicit
+  wrap-around, Nyquist toggling, and 500 randomized cycles. Yosys `check -assert` passed
+  with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
