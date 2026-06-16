@@ -1,7 +1,7 @@
 // lfsr.v — Galois-form maximal-length LFSR.
 // Authored by the Architect from spec/spec.md. Synthesizable Verilog-2001 (CLAUDE.md §3).
 //
-// Galois step: next = (state >> 1) ^ (state[MSB] ? POLY : 0)
+// Galois step: next = (state >> 1) ^ (state[LSB] ? POLY : 0)
 // Default POLY=16'hB400 gives a period-65535 sequence for WIDTH=16.
 // SEED must be non-zero; all-zero state is a lock-up point.
 
@@ -20,7 +20,7 @@ module lfsr #(
 
     // Galois next-state: combinational wire, one driver.
     wire [WIDTH-1:0] next_state;
-    assign next_state = (out >> 1) ^ (out[WIDTH-1] ? POLY : {WIDTH{1'b0}});
+    assign next_state = (out >> 1) ^ (out[0] ? POLY : {WIDTH{1'b0}});
 
     always @(posedge clk) begin
         if (rst)

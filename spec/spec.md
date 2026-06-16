@@ -23,9 +23,9 @@ Single clock domain, synchronous reset.
 | `WIDTH` | `16`        | Register width and output width. Must be ≥ 2.                  |
 | `POLY`  | `16'hB400`  | Galois feedback polynomial mask. Bit `i` of `POLY` being 1 means tap at position `i` is active. See §4. |
 
-Default polynomial `16'hB400` = 16'b1011_0100_0000_0000 corresponds to the maximal-
-length 16-bit polynomial x^16 + x^15 + x^13 + x^4 + 1 (taps at positions 15, 13, 3 in
-0-indexed Galois notation). Produces a period of 65535.
+Default polynomial `16'hB400` = 16'b1011_0100_0000_0000 is the standard maximal-length
+right-shift Galois mask for a 16-bit LFSR. With non-zero seed `1`, it produces a period
+of 65535.
 
 ## 3. Ports
 
@@ -40,16 +40,15 @@ length 16-bit polynomial x^16 + x^15 + x^13 + x^4 + 1 (taps at positions 15, 13,
 
 ## 4. Galois LFSR operation
 
-In Galois form, the shift and XOR happen in one step:
+In this right-shift Galois form, the shift and XOR happen in one step:
 
-- The **new LSB** (`next[0]`) is the **old MSB** (`state[WIDTH-1]`), which is the output bit.
-- For bit positions `i` where `1 ≤ i ≤ WIDTH-1`:
-  - If `POLY[i] == 1` (tap is active): `next[i] = state[i-1] ^ state[WIDTH-1]`
-  - If `POLY[i] == 0` (no tap):       `next[i] = state[i-1]`
+- The feedback bit is the **old LSB** (`state[0]`).
+- The state shifts right by one bit.
+- If feedback is `1`, the shifted state is XORed with `POLY`; otherwise it is unchanged.
 
 This can be written compactly as:
 ```
-feedback = state[WIDTH-1]
+feedback = state[0]
 next     = (state >> 1) ^ (feedback ? POLY : 0)
 ```
 
@@ -68,7 +67,7 @@ The all-zero state is the only fixed point that never exits; the spec prohibits 
 Priority: **reset > enable > hold.**
 
 1. If `rst == 1`    → `state <= SEED`.
-2. else if `en == 1`→ apply one Galois step: `state <= (state >> 1) ^ (state[WIDTH-1] ? POLY : {WIDTH{1'b0}})`.
+2. else if `en == 1`→ apply one Galois step: `state <= (state >> 1) ^ (state[0] ? POLY : {WIDTH{1'b0}})`.
 3. else             → `state` holds.
 
 `out` always reflects the registered `state`.
