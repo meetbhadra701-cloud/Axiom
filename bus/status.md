@@ -5,17 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `mixer`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `pwm`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (signed DSP mixer, sync reset, enable-hold,
-  registered signed product) and `rtl/mixer.v`. Yosys `check -assert` reported
-  0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (PWM generator, WIDTH=8, pre-increment comparison,
+  sync reset clears counter + output, enable-hold) and `rtl/pwm.v`.
+  Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
