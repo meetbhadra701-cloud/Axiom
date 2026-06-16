@@ -5,17 +5,17 @@ this to gate each turn.
 
 ## Current
 
-- Module: `nco`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `lfsr`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (NCO phase accumulator, PHASE_WIDTH=24, unsigned,
-  wrapping adder, synchronous reset, enable) and `rtl/nco.v`. Yosys `check -assert`
-  0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (16-bit Galois LFSR, POLY=16'hB400 for period-65535
+  maximal sequence, SEED=1, Galois XOR-feedback step, sync reset, enable) and
+  `rtl/lfsr.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

@@ -1,67 +1,85 @@
-# Spec — `nco`: Numerically Controlled Oscillator (Phase Accumulator)
+# Spec — `lfsr`: Galois Linear Feedback Shift Register
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 Previous specs archived in `spec/`.
 
 ## 1. Overview
 
-A synchronous Numerically Controlled Oscillator (NCO), also called a Direct Digital
-Synthesizer (DDS) phase accumulator. On each enabled clock edge it adds a frequency
-word `phase_inc` to a registered phase accumulator `phase_out`. The output frequency
-relative to `clk` is `f_out = phase_inc / 2^PHASE_WIDTH * f_clk`.
+A synchronous Galois-form LFSR (Linear Feedback Shift Register). Generates a
+maximal-length pseudorandom binary sequence (PRBS) with period `2^WIDTH - 1` (all
+non-zero states). Used for noise generation, test-pattern generation, data scrambling,
+and CRC computation.
 
-The high bits of `phase_out` form a sawtooth waveform; they can index a sine LUT
-(not part of this module) to produce a sine wave. This module is the core frequency-
-synthesis primitive used in software-defined radio, tone generation, and modulation.
+**Galois form** (also called internal XOR): feedback is applied to individual internal
+tap positions in parallel, rather than chaining through the whole register. This
+produces shorter combinational paths and better synthesis results than Fibonacci form.
 
 Single clock domain, synchronous reset.
 
 ## 2. Parameters
 
-| Name          | Default | Meaning                                              |
-|---------------|---------|------------------------------------------------------|
-| `PHASE_WIDTH` | `24`    | Bit width of the phase accumulator and `phase_out`.  |
+| Name    | Default     | Meaning                                                         |
+|---------|-------------|-----------------------------------------------------------------|
+| `WIDTH` | `16`        | Register width and output width. Must be ≥ 2.                  |
+| `POLY`  | `16'hB400`  | Galois feedback polynomial mask. Bit `i` of `POLY` being 1 means tap at position `i` is active. See §4. |
 
-A 24-bit accumulator gives ~0.06 Hz frequency resolution at 1 MHz clock, and supports
-output frequencies from 0 Hz (phase_inc=0) up to f_clk/2 (phase_inc = 2^23).
+Default polynomial `16'hB400` = 16'b1011_0100_0000_0000 corresponds to the maximal-
+length 16-bit polynomial x^16 + x^15 + x^13 + x^4 + 1 (taps at positions 15, 13, 3 in
+0-indexed Galois notation). Produces a period of 65535.
 
 ## 3. Ports
 
-| Name         | Dir | Width         | Description                                              |
-|--------------|-----|---------------|----------------------------------------------------------|
-| `clk`        | in  | 1             | Clock. All state changes on rising edge.                 |
-| `rst`        | in  | 1             | Synchronous, active-high reset. Clears `phase_out` to 0.|
-| `en`         | in  | 1             | Accumulator enable (active-high).                        |
-| `phase_inc`  | in  | `PHASE_WIDTH` | Unsigned frequency word. Added to accumulator each cycle.|
-| `phase_out`  | out | `PHASE_WIDTH` | Registered unsigned phase accumulator value.             |
+| Name   | Dir | Width   | Description                                               |
+|--------|-----|---------|-----------------------------------------------------------|
+| `clk`  | in  | 1       | Clock. All state changes on rising edge.                  |
+| `rst`  | in  | 1       | Synchronous, active-high reset. Loads `state` with the seed `SEED` parameter. |
+| `en`   | in  | 1       | Shift enable (active-high).                               |
+| `out`  | out | `WIDTH` | Registered LFSR state output.                             |
 
-`phase_out` is a registered output (flip-flop), not combinational.
+`out` is registered (driven from flip-flops).
 
-## 4. Behavior (per rising edge of `clk`)
+## 4. Galois LFSR operation
 
-Priority order: **reset > enable > hold.**
+In Galois form, the shift and XOR happen in one step:
 
-1. If `rst == 1`    → `phase_out <= 0`.
-2. else if `en == 1`→ `phase_out <= phase_out + phase_inc`. Natural wrap modulo
-   `2^PHASE_WIDTH` (the adder overflows back to 0).
-3. else             → `phase_out` holds.
+- The **new LSB** (`next[0]`) is the **old MSB** (`state[WIDTH-1]`), which is the output bit.
+- For bit positions `i` where `1 ≤ i ≤ WIDTH-1`:
+  - If `POLY[i] == 1` (tap is active): `next[i] = state[i-1] ^ state[WIDTH-1]`
+  - If `POLY[i] == 0` (no tap):       `next[i] = state[i-1]`
 
-## 5. Arithmetic semantics
+This can be written compactly as:
+```
+feedback = state[WIDTH-1]
+next     = (state >> 1) ^ (feedback ? POLY : 0)
+```
 
-- `phase_inc` and `phase_out` are **unsigned** integers.
-- Accumulation wraps naturally (no saturation, no overflow flag).
-- `phase_inc = 0` → accumulator holds at 0 (or any initial value after rst) → DC.
-- `phase_inc = 2^(PHASE_WIDTH-1)` → accumulator toggles between 0 and the mid-point
-  every cycle → output at Nyquist (f_clk/2).
+## 5. Seed / reset value
 
-## 6. Reset semantics
+A separate parameter `SEED` specifies the post-reset state.
+
+| Name   | Default | Meaning                                                           |
+|--------|---------|-------------------------------------------------------------------|
+| `SEED` | `1`     | Non-zero initial state loaded on `rst`. Must not be 0 (the LFSR locks up at all-zero). |
+
+The all-zero state is the only fixed point that never exits; the spec prohibits `SEED=0`.
+
+## 6. Behavior (per rising edge of `clk`)
+
+Priority: **reset > enable > hold.**
+
+1. If `rst == 1`    → `state <= SEED`.
+2. else if `en == 1`→ apply one Galois step: `state <= (state >> 1) ^ (state[WIDTH-1] ? POLY : {WIDTH{1'b0}})`.
+3. else             → `state` holds.
+
+`out` always reflects the registered `state`.
+
+## 7. Reset semantics
 
 Synchronous, active-high. `rst` must not appear in a sensitivity list.
-Clears `phase_out` to 0.
 
-## 7. Synthesis constraints (CLAUDE.md §3)
+## 8. Synthesis constraints (CLAUDE.md §3)
 
-- Single `always @(posedge clk)` block, non-blocking `<=` only.
+- Single `always @(posedge clk)` block, non-blocking `<=`.
+- Galois next-state logic is combinational — express inline or as a `wire`, not in an `always @(*)`.
 - No `initial`, no `#` delays, no inferred latches.
-- One driver for `phase_out`. Explicit bit widths.
 - Must pass Yosys `check -assert` with 0 problems.
