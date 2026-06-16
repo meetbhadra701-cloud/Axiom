@@ -6,8 +6,8 @@ this to gate each turn.
 ## Current
 
 - Module: `fir`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `bug_reported`
+- Last actor: Verifier
 
 ## Architect
 
@@ -21,12 +21,10 @@ this to gate each turn.
 ## Verifier
 
 - Iteration: 1
-- State: `verified`
-- Last change: Added `tb/test_mac.py` and parameterized the root `Makefile` with
-  `DUT ?= mac`. Cocotb simulation passed with signed golden-model checks covering
-  reset, reset priority, clear priority, enable-hold, positive/negative products,
-  300 randomized cycles, and accumulator wrap stress. Yosys `check -assert` also
-  passed with 0 reported problems.
+- State: `failed`
+- Last change: Added `tb/test_fir.py` and ran Cocotb with `DUT=fir`. Simulation failed
+  on the impulse-response coefficient-order check: cycle `impulse 1` got `y=1`, expected
+  `y=2` for delay `[1, 0, 0, 0]`.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the

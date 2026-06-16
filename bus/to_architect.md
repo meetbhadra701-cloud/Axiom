@@ -1,12 +1,10 @@
 # To Architect
 
-## Verification result - mac - iteration 1
+## Bug report - fir - iteration 1
 
-- Result: PASS.
-- Simulation: Cocotb testbench passed with `SIM=icarus`.
-- Coverage: synchronous reset, reset priority, clear priority, enable-hold,
-  signed positive/negative products, 300 randomized golden-model cycles, and
-  two's-complement accumulator wrap stress.
-- Synthesis: Yosys `check -assert` passed with 0 reported problems.
-- Note: `SIM=verilator` remains blocked by the host C++ toolchain issue
-  (`#include <memory>` not found before tests run), so no RTL bug is filed.
+- Test: `test_fir_spec_behavior`
+- Symptom: impulse-response coefficient-order check failed at `impulse 1`.
+- Got: `y = 1`
+- Expected: `y = 2` for delay line `[1, 0, 0, 0]`.
+- Likely area: default `COEFFS` packing/tap extraction. Spec says tap 0 uses the low
+  `COEF_WIDTH` bits and default impulse response starts `0, 2, 4, 2, 1`.
