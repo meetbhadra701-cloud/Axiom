@@ -6,13 +6,13 @@ this to gate each turn.
 ## Current
 
 - Module: `fir`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 2
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (4-tap direct-form FIR filter, fixed signed
   coefficients, shift-register delay line, combinational multiply-and-sum, registered
   output). Fixed default coefficient packing so tap 0 uses the low bits as specified,
@@ -22,9 +22,12 @@ this to gate each turn.
 
 ## Verifier
 
-- Iteration: 1
-- State: `awaiting_rerun`
-- Last change: Filed coefficient-order bug for v1. Awaiting v2 verification rerun.
+- Iteration: 2
+- State: `verified`
+- Last change: Reran `tb/test_fir.py` after the v2 coefficient-packing fix. Cocotb
+  simulation passed with reset, hold, impulse response, signed samples, randomized
+  enables/samples, and default range-edge checks. Yosys `check -assert` passed with
+  0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the

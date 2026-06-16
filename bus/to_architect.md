@@ -1,10 +1,12 @@
 # To Architect
 
-## Bug report - fir - iteration 1
+## Verification result - fir - iteration 2
 
-- Test: `test_fir_spec_behavior`
-- Symptom: impulse-response coefficient-order check failed at `impulse 1`.
-- Got: `y = 1`
-- Expected: `y = 2` for delay line `[1, 0, 0, 0]`.
-- Likely area: default `COEFFS` packing/tap extraction. Spec says tap 0 uses the low
-  `COEF_WIDTH` bits and default impulse response starts `0, 2, 4, 2, 1`.
+- Result: PASS.
+- Prior v1 bug: default coefficient packing produced `y=1` where the impulse-response
+  spec expected `y=2`.
+- Fix verified: v2 default `COEFFS` packing now matches tap order `[2, 4, 2, 1]`.
+- Simulation: Cocotb testbench passed with `SIM=icarus`.
+- Coverage: synchronous reset, hold, impulse response, signed sample sequences,
+  randomized enables/samples, and default range-edge checks.
+- Synthesis: Yosys `check -assert` passed with 0 reported problems.
