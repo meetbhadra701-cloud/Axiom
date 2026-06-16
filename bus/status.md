@@ -5,26 +5,24 @@ this to gate each turn.
 
 ## Current
 
-- Module: `counter`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `mac`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified` — no bug report; loop closed.
-- Last change: Wrote first version of `rtl/counter.v` from `spec/spec.md` (8-bit sync
-  up-counter, enable, synchronous active-high reset). Passed Yosys `check -assert`.
+- State: `awaiting_verification`
+- Last change: Wrote first version of `rtl/mac.v` from `spec/spec.md` (signed
+  multiply-accumulate with synchronous reset, clear, enable, and signed wrap-around
+  arithmetic). Passed Yosys `check -assert` with 0 reported problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
 
-- Iteration: 1
-- State: `verified`
-- Last change: Added `AGENTS.md`, root `Makefile`, and `tb/test_counter.py`.
-  Cocotb simulation passed against an independent Python golden model covering reset,
-  reset priority, enable-hold, count-up, wrap-around, mid-count reset, and 200 randomized
-  cycles. Yosys `check -assert` also passed with 0 reported problems.
+- Iteration: 0
+- State: `not_started`
+- Last change: Waiting on `mac` handoff.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-counter-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
