@@ -1,18 +1,15 @@
 # To Verifier
 
-v2 of `rtl/fir.v` ready, spec in `spec/spec.md` (4-tap direct-form FIR filter, fixed
-signed coefficients, synchronous reset, sample enable). Ready for simulation.
+v1 of `rtl/fifo.v` ready, spec in `spec/spec.md` (synchronous FIFO, power-of-2 depth,
+transparent read output). Ready for simulation.
 
-Changes since v1:
-- Fixed default `COEFFS` packing so tap 0 (low bits) is coefficient `2`, matching the
-  specified impulse response.
-- Replaced unpacked delay-line memory array with a packed register vector to avoid Yosys
-  memory-replacement warnings.
-
-- Module: `fir` (params `N_TAPS=4`, `DATA_WIDTH=8`, `COEF_WIDTH=8`, `OUT_WIDTH=32`,
-  `COEFFS={8'sd2, 8'sd4, 8'sd2, 8'sd1}`)
-- Top-level: `fir`
-- Ports: `clk`, `rst` (sync active-high), `en`, signed `x[DATA_WIDTH-1:0]`,
-  registered signed `y[OUT_WIDTH-1:0]`
-- Yosys `check -assert`: 0 problems
-- Iteration: 2
+- Module: `fifo` (params `WIDTH=8`, `DEPTH=16`)
+- Top-level: `fifo`
+- Ports: `clk`, `rst` (sync active-high), `wr_en`, `rd_en`, `din[WIDTH-1:0]`,
+  `dout[WIDTH-1:0]` (transparent/combinational), `full` (registered), `empty` (registered)
+- Read style: **transparent** — `dout` is a combinational wire from `mem[rd_ptr]`.
+  Valid data appears on `dout` in the same cycle `rd_ptr` points to it, with no
+  extra read-latency cycle. `rd_en` advances the pointer on the next clock edge.
+- Yosys `check -assert`: 0 problems (memory "no output FF" note is expected for
+  transparent read — not a latch)
+- Iteration: 1

@@ -1,81 +1,91 @@
-# Spec — `fir`: Parameterizable Direct-Form FIR Filter
+# Spec — `fifo`: Parameterizable Synchronous FIFO
 
-**Status:** authoritative. Ground truth for the Architect and Verifier.
-Previous module specs archived at `spec/counter.md` and `spec/mac_spec.md`.
-Ambiguities → `bus/status.md` "Questions for Manager", not guesses.
+**Status:** authoritative. Ground truth for Architect and Verifier.
+Previous specs archived in `spec/`.
 
 ## 1. Overview
 
-A synchronous, direct-form, fixed-coefficient FIR (Finite Impulse Response) filter.
-On each enabled clock edge, it shifts a new input sample into an `N_TAPS`-deep delay
-line, multiplies each tap by a fixed signed coefficient, and sums all products into a
-registered output `y`.
+A synchronous, single-clock FIFO (First-In First-Out) buffer. Data written to the FIFO
+via `wr_en` is stored and read back in the same order via `rd_en`. Status flags `full`
+and `empty` indicate when writes or reads should be withheld. Used between DSP pipeline
+stages to decouple throughput.
 
-Single clock domain, single synchronous reset. Coefficients are compile-time parameters,
-not runtime-loadable (no coefficient RAM).
+Single clock domain. All controls synchronous and active-high.
 
 ## 2. Parameters
 
-| Name         | Default | Meaning                                                      |
-|--------------|---------|--------------------------------------------------------------|
-| `N_TAPS`     | `4`     | Number of filter taps. Must be ≥ 1.                          |
-| `DATA_WIDTH` | `8`     | Bit width of signed input sample `x` and each delay element. |
-| `COEF_WIDTH` | `8`     | Bit width of each signed coefficient.                        |
-| `OUT_WIDTH`  | `32`    | Bit width of registered signed output `y`.                   |
+| Name    | Default | Meaning                                               |
+|---------|---------|-------------------------------------------------------|
+| `WIDTH` | `8`     | Bit width of each data word.                          |
+| `DEPTH` | `16`    | Number of storage locations. Must be a power of 2 ≥ 2.|
 
-Coefficients are passed as a flat packed parameter `COEFFS`, declared as a
-`(N_TAPS * COEF_WIDTH)`-bit vector. Tap 0 (most recent sample) uses bits
-`[COEF_WIDTH-1:0]`, tap 1 uses `[2*COEF_WIDTH-1:COEF_WIDTH]`, etc.
-
-For the default 4-tap 8-bit case: `COEFFS = 32'h01_02_04_02` gives coefficients
-`[2, 4, 2, 1]` in that order (tap 3 … tap 0), which is a simple low-pass kernel.
+The FIFO holds up to `DEPTH` words. Address wraps modulo `DEPTH` (pointer width =
+`$clog2(DEPTH)` bits).
 
 ## 3. Ports
 
-| Name  | Dir | Width        | Description                                              |
-|-------|-----|--------------|----------------------------------------------------------|
-| `clk` | in  | 1            | Clock. All state changes on rising edge.                 |
-| `rst` | in  | 1            | Synchronous, active-high reset. Clears delay line and `y`.|
-| `en`  | in  | 1            | Sample enable (active-high). Shift and compute when high. |
-| `x`   | in  | `DATA_WIDTH` | Signed input sample.                                     |
-| `y`   | out | `OUT_WIDTH`  | Registered signed filtered output.                       |
-
-`y` is a registered output (driven from a flip-flop), not combinational.
+| Name    | Dir | Width   | Description                                              |
+|---------|-----|---------|----------------------------------------------------------|
+| `clk`   | in  | 1       | Clock. All state changes on rising edge.                 |
+| `rst`   | in  | 1       | Synchronous, active-high reset. Clears pointers and flags.|
+| `wr_en` | in  | 1       | Write enable. Writes `din` to FIFO when high and not `full`.|
+| `rd_en` | in  | 1       | Read enable. Advances read pointer when high and not `empty`.|
+| `din`   | in  | `WIDTH` | Data input word.                                         |
+| `dout`  | out | `WIDTH` | Data output word (registered; reflects current read pointer).|
+| `full`  | out | 1       | Asserted when FIFO holds `DEPTH` words. Registered.      |
+| `full`  | out | 1       | Asserted when FIFO holds `DEPTH` words.                  |
+| `empty` | out | 1       | Asserted when FIFO holds 0 words.                        |
 
 ## 4. Behavior (per rising edge of `clk`)
 
-**Priority: reset > enable > hold.**
+**Reset:**
+- If `rst == 1`: write pointer `wr_ptr ← 0`, read pointer `rd_ptr ← 0`, `count ← 0`.
+  `full ← 0`, `empty ← 1`. Memory contents are don't-care after reset (don't need
+  explicit clear).
 
-1. If `rst == 1`:
-   - All delay-line registers `d[0..N_TAPS-1]` ← 0.
-   - Output register `y` ← 0.
-2. else if `en == 1`:
-   - Shift the delay line: `d[N_TAPS-1] ← d[N_TAPS-2]`, …, `d[1] ← d[0]`, `d[0] ← x`.
-   - Compute `y ← sum over i of (d[i] * coef[i])`, each product sign-extended to
-     `OUT_WIDTH` before summation. Result registered.
-3. else: all registers hold.
+**Simultaneous read and write (count unchanged):**
+- If `wr_en && !full && rd_en && !empty` in the same cycle: write `din` at `wr_ptr`,
+  advance `wr_ptr`; read from `rd_ptr`, advance `rd_ptr`; `count` unchanged.
 
-The `d[i] * coef[i]` products and the final sum are computed combinationally from the
-registered delay line; only `y` and the delay-line registers are sequential.
+**Write only:**
+- If `wr_en && !full && !(rd_en && !empty)`: write `din` at `wr_ptr`, `wr_ptr ← wr_ptr + 1`, `count ← count + 1`.
 
-## 5. Arithmetic semantics
+**Read only:**
+- If `rd_en && !empty && !(wr_en && !full)`: `rd_ptr ← rd_ptr + 1`, `count ← count - 1`.
 
-- `x`, `d[i]` are signed (`DATA_WIDTH` bits, two's complement).
-- `coef[i]` is signed (`COEF_WIDTH` bits, two's complement, extracted from `COEFFS`).
-- Each product is `DATA_WIDTH + COEF_WIDTH` bits wide (signed).
-- Products are sign-extended to `OUT_WIDTH` before the sum.
-- The sum and `y` are `OUT_WIDTH`-bit signed, wrapping (no saturation).
+**Hold:** no valid wr_en or rd_en — all registers hold.
 
-## 6. Reset semantics
+**Ignored operations:**
+- `wr_en` when `full` → ignored (no write, no pointer change).
+- `rd_en` when `empty` → ignored (no read, no pointer change).
 
-- Synchronous, active-high only. Do not put `rst` in a sensitivity list.
-- Reset clears all delay-line taps and `y` to zero.
+## 5. Output `dout`
 
-## 7. Synthesis constraints (CLAUDE.md §3)
+`dout` is the word at the current `rd_ptr` in the storage array, registered or read
+directly from the array. The Architect may implement as:
+- **registered read:** `dout` is a `reg` updated on the clock edge when `rd_en && !empty`, OR
+- **transparent read:** `dout` is a `wire` driven by `mem[rd_ptr]` combinationally.
 
-- Delay-line and `y` updates in a **single** `always @(posedge clk)` block.
-- Combinational sum in a separate `always @(*)` block with a default assignment
-  (no inferred latches), or as `wire` assignments.
-- Non-blocking `<=` for sequential; blocking `=` for combinational.
-- No `initial`, no `#` delays. Explicit widths throughout.
+Either is acceptable; the Verifier's test must handle both. **Specify which you chose
+in `bus/to_verifier.md`.**
+
+## 6. `full` and `empty` flags
+
+Both are registered (driven from flip-flops, not pure combinational).
+
+- `empty` is high after reset and whenever `count == 0`.
+- `full` is high whenever `count == DEPTH`.
+- Updates take effect on the clock edge following the triggering read/write.
+
+## 7. Reset semantics
+
+Synchronous, active-high. `rst` must not appear in a sensitivity list.
+
+## 8. Synthesis constraints (CLAUDE.md §3)
+
+- Storage array as `reg [WIDTH-1:0] mem [0:DEPTH-1]`.
+- All pointer/flag updates in a **single** `always @(posedge clk)` block.
+- Non-blocking `<=` in sequential block. No `initial`, no `#` delays.
+- No inferred latches; every combinational path has a default.
 - Must pass Yosys `check -assert` with 0 problems.
+- DEPTH must be a power of 2 so pointer wrap is automatic (no comparator needed).

@@ -5,19 +5,17 @@ this to gate each turn.
 
 ## Current
 
-- Module: `fir`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `fifo`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
-- Iteration: 2
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (4-tap direct-form FIR filter, fixed signed
-  coefficients, shift-register delay line, combinational multiply-and-sum, registered
-  output). Fixed default coefficient packing so tap 0 uses the low bits as specified,
-  and changed the delay line to a packed register vector to avoid Yosys memory warnings.
-  Yosys `check -assert` reports 0 problems.
+- Iteration: 1
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (synchronous FIFO, power-of-2 depth, transparent
+  read output, registered full/empty flags) and `rtl/fifo.v`. Yosys `check -assert`
+  0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
