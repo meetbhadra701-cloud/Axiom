@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/delta_sigma.v
-hierarchy -check -top delta_sigma
+read_verilog -sv rtl/strobe_gen.v
+hierarchy -check -top strobe_gen
 proc
 opt
-synth -top delta_sigma
+synth -top strobe_gen
 check -assert
 stat
