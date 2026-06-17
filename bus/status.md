@@ -5,17 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `edge_det`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `debounce`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (two-stage synchronous edge detector, no params,
-  registered rise/fall/any_edge outputs, 2-cycle latency, sync reset clears pipeline)
-  and `rtl/edge_det.v`. Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (signal debouncer, STABLE_BITS=4, counter counts
+  cycles where sig_in≠sig_out, sig_out updates after 2^STABLE_BITS stable cycles,
+  sync reset, no en) and `rtl/debounce.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

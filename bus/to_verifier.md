@@ -1,22 +1,25 @@
 # To Verifier
 
-v1 of `rtl/edge_det.v` ready, spec in `spec/spec.md` (two-stage synchronous edge
-detector). Ready for simulation.
+v1 of `rtl/debounce.v` ready, spec in `spec/spec.md` (synchronous signal debouncer).
+Ready for simulation.
 
-- Module: `edge_det` (no parameters)
-- Top-level: `edge_det`
-- Ports: `clk`, `rst` (sync active-high), `sig_in`, registered `rise`, `fall`, `any_edge`
-- No `en` port — detection runs continuously; rst is the only control.
-- Internal: `pipe[1:0]`; pipe[0] = current sample, pipe[1] = one cycle older.
-- rise = pipe[0] & ~pipe[1]; fall = ~pipe[0] & pipe[1]; any_edge = pipe[0] ^ pipe[1].
-- All three outputs are registered — 2-cycle latency after input transition.
+- Module: `debounce` (param `STABLE_BITS=4`, threshold = 16 consecutive differing cycles)
+- Top-level: `debounce`
+- Ports: `clk`, `rst` (sync active-high), `sig_in`, registered `sig_out`
+- No `en` port — runs continuously.
+- Internal: `counter[3:0]` counts cycles where sig_in ≠ sig_out.
+  - sig_in == sig_out → counter = 0.
+  - counter == 4'hF (15) → sig_out ← sig_in, counter ← 0.
+  - else → counter++.
+- Threshold: sig_out updates after **16** consecutive cycles of sig_in ≠ sig_out
+  (counter starts at 0, takes 15 increments to reach 15, accept fires on cycle 16).
 - Yosys `check -assert`: 0 problems.
 - Iteration: 1
 
-Verification tips:
-- Rising edge: sig_in 0→1 on cycle N; rise=1 on cycle N+2 for exactly 1 cycle.
-- Falling edge: sig_in 1→0 on cycle N; fall=1 on cycle N+2 for exactly 1 cycle.
-- Sustained: no further pulses while sig_in held constant.
-- 1-cycle glitch (0→1→0): rise fires cycle+2, fall fires cycle+3, any_edge fires both.
-- any_edge == rise | fall at all times.
-- Reset during in-flight: pipe and all outputs clear to 0.
+Verification tips (STABLE_BITS=4, threshold = 16 consecutive differing cycles):
+- Clean rise: sig_in=1 continuously; sig_out→1 on cycle 16 (when counter reaches 15).
+- Short glitch: sig_in=1 for only 15 cycles then back to 0 → sig_out stays 0.
+- Counter reset: 15 cycles of sig_in=1 then 1 cycle sig_in=0 resets counter; 16 more needed.
+- Fall: after sig_out=1, sig_in=0 for 16 cycles → sig_out→0.
+- Reset mid-count: clears counter and sig_out to 0.
+- Randomized: any stable run < 16 cycles never triggers; any run ≥ 16 cycles always triggers.

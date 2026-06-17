@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/edge_det.v
-hierarchy -check -top edge_det
+read_verilog -sv rtl/debounce.v
+hierarchy -check -top debounce
 proc
 opt
-synth -top edge_det
+synth -top debounce
 check -assert
 stat
