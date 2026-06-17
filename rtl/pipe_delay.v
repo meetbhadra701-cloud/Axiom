@@ -17,14 +17,22 @@ module pipe_delay #(
 
     reg [WIDTH-1:0] pipe [0:DEPTH-1];
 
+    always @(posedge clk) begin
+        if (rst)
+            pipe[0] <= {WIDTH{1'b0}};
+        else if (en)
+            pipe[0] <= d_in;
+        // else: hold
+    end
+
     genvar g;
     generate
-        for (g = 0; g < DEPTH; g = g + 1) begin : stage
+        for (g = 1; g < DEPTH; g = g + 1) begin : stage
             always @(posedge clk) begin
                 if (rst)
                     pipe[g] <= {WIDTH{1'b0}};
                 else if (en)
-                    pipe[g] <= (g == 0) ? d_in : pipe[g-1];
+                    pipe[g] <= pipe[g-1];
                 // else: hold
             end
         end
