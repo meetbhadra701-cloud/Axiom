@@ -5,17 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `debounce`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `gray_codec`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (signal debouncer, STABLE_BITS=4, counter counts
-  cycles where sig_in≠sig_out, sig_out updates after 2^STABLE_BITS stable cycles,
-  sync reset, no en) and `rtl/debounce.v`. Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (Gray code encoder/decoder, WIDTH=8, mode=0
+  binary→Gray via XOR-shift, mode=1 Gray→binary via MSB-down XOR prefix chain,
+  sync reset, enable-hold) and `rtl/gray_codec.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

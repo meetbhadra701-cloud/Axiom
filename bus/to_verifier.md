@@ -1,25 +1,23 @@
 # To Verifier
 
-v1 of `rtl/debounce.v` ready, spec in `spec/spec.md` (synchronous signal debouncer).
+v1 of `rtl/gray_codec.v` ready, spec in `spec/spec.md` (Gray code encoder/decoder).
 Ready for simulation.
 
-- Module: `debounce` (param `STABLE_BITS=4`, threshold = 16 consecutive differing cycles)
-- Top-level: `debounce`
-- Ports: `clk`, `rst` (sync active-high), `sig_in`, registered `sig_out`
-- No `en` port — runs continuously.
-- Internal: `counter[3:0]` counts cycles where sig_in ≠ sig_out.
-  - sig_in == sig_out → counter = 0.
-  - counter == 4'hF (15) → sig_out ← sig_in, counter ← 0.
-  - else → counter++.
-- Threshold: sig_out updates after **16** consecutive cycles of sig_in ≠ sig_out
-  (counter starts at 0, takes 15 increments to reach 15, accept fires on cycle 16).
+- Module: `gray_codec` (param `WIDTH=8`)
+- Top-level: `gray_codec`
+- Ports: `clk`, `rst` (sync active-high), `en`, `mode` (0=encode, 1=decode),
+  `data[7:0]`, registered `result[7:0]`
+- mode=0 encode: `result <= data ^ (data >> 1)` — MSB unchanged, each lower bit XOR'd with above.
+- mode=1 decode: `result <= prefix_xor(data)` — result[7]=data[7]; result[i]=result[i+1]^data[i].
+- Decode implemented as a `generate` loop of `assign` chains (no feedback, purely combinational).
 - Yosys `check -assert`: 0 problems.
 - Iteration: 1
 
-Verification tips (STABLE_BITS=4, threshold = 16 consecutive differing cycles):
-- Clean rise: sig_in=1 continuously; sig_out→1 on cycle 16 (when counter reaches 15).
-- Short glitch: sig_in=1 for only 15 cycles then back to 0 → sig_out stays 0.
-- Counter reset: 15 cycles of sig_in=1 then 1 cycle sig_in=0 resets counter; 16 more needed.
-- Fall: after sig_out=1, sig_in=0 for 16 cycles → sig_out→0.
-- Reset mid-count: clears counter and sig_out to 0.
-- Randomized: any stable run < 16 cycles never triggers; any run ≥ 16 cycles always triggers.
+Verification tips:
+- encode(0)=0, encode(1)=1, encode(2)=3, encode(3)=2, encode(255)=128 (0xFF→0x80).
+- decode(encode(x)) == x for all x 0..255 (round-trip).
+- Consecutive inputs: encode(n) and encode(n+1) differ in exactly 1 bit.
+- Exhaustive: all 256 values both modes; Python reference: encode=`n^(n>>1)`;
+  decode=`functools.reduce(lambda a,b: a^b, [n>>(16-i) for i in range(16)])` truncated to 8-bit,
+  or more simply: iteratively `b = b>>1; g ^= b` until b==0 on the original gray value.
+- Mode switch mid-run: result updates on next en=1 cycle.
