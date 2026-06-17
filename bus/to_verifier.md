@@ -1,20 +1,23 @@
 # To Verifier
 
-v1 of `rtl/prio_enc.v` ready, spec in `spec/spec.md` (priority encoder). Ready for simulation.
+v1 of `rtl/rr_arb.v` ready, spec in `spec/spec.md` (round-robin arbiter). Ready for simulation.
 
-- Module: `prio_enc` (params `WIDTH=8`, `LOG2W=3`)
-- Top-level: `prio_enc`
-- Ports: `clk`, `rst` (sync active-high), `en`, `in[7:0]` (request bits, bit 7 = highest
-  priority), registered `out[2:0]` (index of winning bit), registered `valid` (any bit set)
-- Priority: reset > enable > hold.
-- Logic: combinational always@(*) scans in[0..7] low-to-high; last found overwrites enc_out;
-  defaults before loop prevent latches. Sequential block registers enc_out/enc_valid.
-- Highest-index bit wins: in=8'b10100100 → out=7.
-- in=0: valid=0, out=0.
-- Yosys `check -assert`: 0 problems. "No latch inferred" messages confirmed for enc_out, enc_valid, i.
+- Module: `rr_arb` (params `PORTS=4`, `LOG2P=2`)
+- Top-level: `rr_arb`
+- Ports: `clk`, `rst` (sync active-high), `req[3:0]`, registered `grant[3:0]` (one-hot),
+  registered `grant_idx[1:0]` (binary index of winner)
+- No `en` — arbiter runs every cycle.
+- Algorithm: two-pass combinational scan (defaults prevent latches):
+    Pass 1: lowest index ≥ ptr with req set → winner.
+    Pass 2 (wrap): if Pass 1 found nothing, lowest index overall with req set → winner.
+  After grant: ptr ← (winner+1) % PORTS. No requests → grant=0, ptr holds.
+- Yosys `check -assert`: 0 problems. "No latch inferred" confirmed for all combinational regs.
 - Iteration: 1
 
 Verification tips:
-- Exhaustive: all 256 in values; Python reference: valid=(in!=0); out=in.bit_length()-1 if valid else 0.
-- Directed: single bits at each position, multiple bits set, all-ones, zero.
-- Random en/rst/in cycles against reference model.
+- All 4 ports asserted (req=4'hF) for 8 cycles → grant sequence 0001,0010,0100,1000,0001,…
+- Wrap: after granting port 3, ptr=0; port 0 granted next.
+- Idle (req=0): grant=0, ptr holds.
+- Two ports active (e.g. req=4'b0101, ports 0 and 2): alternates 0001,0100,0001,…
+- No starvation: any port continuously asserting req gets granted within PORTS cycles.
+- Reset: grant=0, grant_idx=0, ptr=0.

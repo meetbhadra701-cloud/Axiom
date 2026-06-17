@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/prio_enc.v
-hierarchy -check -top prio_enc
+read_verilog -sv rtl/rr_arb.v
+hierarchy -check -top rr_arb
 proc
 opt
-synth -top prio_enc
+synth -top rr_arb
 check -assert
 stat

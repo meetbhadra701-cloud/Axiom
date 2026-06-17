@@ -5,18 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `prio_enc`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `rr_arb`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (priority encoder, WIDTH=8 LOG2W=3, highest-index
-  set bit wins, combinational for-loop with defaults feeds registered out/valid,
-  sync reset, enable-hold) and `rtl/prio_enc.v`. Yosys `check -assert` 0 problems;
-  "No latch inferred" messages confirm default assignments prevent latches.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (round-robin arbiter, PORTS=4 LOG2P=2, two-pass
+  scan from ptr then wrap, one-hot grant output, ptr advances past winner each cycle,
+  sync reset, no en) and `rtl/rr_arb.v`. Yosys `check -assert` 0 problems, no latches.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
