@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `pipe_delay`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (pipeline delay line, WIDTH=8 DEPTH=4, generate
   loop of DEPTH registered stages, d_out is combinational tap of last stage, latency
   measured in enabled cycles, sync reset, enable-hold) and `rtl/pipe_delay.v`.
@@ -23,12 +23,12 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote `tb/test_rr_arb.py`. Cocotb simulation passed synchronous reset,
-  single-request behavior, all-request round-robin sequence, sparse wrap-around cases,
-  idle-cycle pointer/index hold, exhaustive two-cycle request pairs, 800 randomized
-  request/reset cycles against a Python pointer model, and continuous-request
-  no-starvation checks. Yosys `check -assert` passed with 0 reported problems and no
-  latches inferred for the combinational selector.
+- Last change: Split pipe stage 0 out of the generate loop to avoid a nonportable
+  unreachable `pipe[-1]` elaboration warning, then wrote `tb/test_pipe_delay.py`.
+  Cocotb simulation passed default DEPTH=4 and override DEPTH=1 runs covering reset,
+  reset priority, hold/freeze, pulse latency, sequence latency, enable-gated paused
+  latency, DEPTH=1 behavior, and 600 randomized reset/enable/data cycles against a
+  Python stage model. Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -57,6 +57,7 @@ No human gate is required for this project unless a real external blocker appear
 - `shift_reg`
 - `prio_enc`
 - `rr_arb`
+- `pipe_delay`
 
 ## Questions for Manager
 
