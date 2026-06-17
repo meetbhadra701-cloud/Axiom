@@ -1,71 +1,76 @@
-# Spec — shift_reg (Universal Shift Register)
+# Spec — prio_enc (Priority Encoder)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 Previous specs archived in `spec/`.
 
 ## Purpose
 
-Synchronous left-shifting universal shift register. Supports both PISO (parallel-in
-serial-out) and SIPO (serial-in parallel-out) use-cases in one module:
+Registered priority encoder. Scans a WIDTH-bit request vector and reports the index
+of the **highest-priority (highest-index) set bit** plus a `valid` flag. If multiple
+bits are set, the one at the highest index wins. If no bits are set, `valid = 0` and
+`out` is 0.
 
-- **PISO** (transmit): assert `load` to preload `parallel_in`, then drive `en=1,
-  load=0` for WIDTH cycles; `serial_out` delivers bits MSB-first.
-- **SIPO** (receive): drive `en=1, load=0` for WIDTH cycles feeding bits into
-  `serial_in` LSB-first; read the assembled word from `parallel_out`.
-
-Core building block for SPI, I2S, and any MSB-first serial protocol.
+Typical use: interrupt controller (`in` = pending interrupt flags, `out` = IRQ number
+to service), bus arbiter pre-stage, or any module that needs to find the MSB.
 
 ## Parameters
 
-| Parameter | Default | Description |
+| Parameter  | Default | Description |
 |---|---:|---|
-| `WIDTH`   | 8 | Word width. |
+| `WIDTH`    | 8 | Number of input request bits. Must be a power of two ≥ 2. |
+| `LOG2W`    | 3 | Output index width. Must satisfy `2^LOG2W == WIDTH`. For WIDTH=8 set LOG2W=3. |
+
+Two separate parameters (rather than `$clog2`) keep the port declaration readable in
+Verilog-2001 and avoid tool portability issues.
 
 ## Ports
 
-| Port           | Direction | Width   | Description |
+| Port    | Direction | Width    | Description |
 |---|---|---:|---|
-| `clk`          | input  | 1       | Clock. |
-| `rst`          | input  | 1       | Synchronous, active-high reset. Clears register to 0. |
-| `load`         | input  | 1       | Parallel load (overrides shift). |
-| `en`           | input  | 1       | Shift enable (active only when `load=0`). |
-| `serial_in`    | input  | 1       | Bit entering at LSB on each shift. |
-| `parallel_in`  | input  | `WIDTH` | Parallel data loaded when `load=1`. |
-| `serial_out`   | output | 1       | MSB of register (combinational tap — bit shifted out next). |
-| `parallel_out` | output | `WIDTH` | Full register contents (combinational, reflects current state). |
+| `clk`   | input  | 1        | Clock. |
+| `rst`   | input  | 1        | Synchronous, active-high reset. |
+| `en`    | input  | 1        | Sample enable. |
+| `in`    | input  | `WIDTH`  | Request bits. Bit `WIDTH-1` has highest priority. |
+| `out`   | output | `LOG2W`  | Registered index of the highest-priority set bit. |
+| `valid` | output | 1        | Registered flag: 1 when any bit of `in` is set. |
 
 ## Behaviour
 
-All state changes on `posedge clk`. Priority: **reset > load > shift(en) > hold**.
+All state changes on `posedge clk`. Priority: **reset > enable > hold**.
 
-Internal state: `sr`, a WIDTH-bit shift register.
+1. If `rst == 1`: `out <= 0`, `valid <= 0`.
+2. Else if `en == 1`: evaluate the combinational priority logic, then register:
+   - `valid <= (in != 0)`
+   - `out <= index of highest set bit in in` (or 0 if none set — guarded by `valid`).
+3. Else: hold.
 
-1. If `rst == 1`: `sr <= 0`.
-2. Else if `load == 1`: `sr <= parallel_in` (regardless of `en`).
-3. Else if `en == 1`: `sr <= {sr[WIDTH-2:0], serial_in}` — left-shift; `serial_in` enters at LSB [0], MSB [WIDTH-1] exits.
-4. Else: hold.
-
-**Combinational outputs (wires, not registered):**
-- `serial_out = sr[WIDTH-1]`  — the bit that will exit on the next shift.
-- `parallel_out = sr`         — the full current register value.
+**Combinational priority logic (for loop):** scan from index 0 to WIDTH−1;
+each found set bit overwrites `enc_out`. At the end of the loop, `enc_out` holds
+the highest-index set bit. Default `enc_out = 0`, `enc_valid = 0` before the loop
+prevents inferred latches.
 
 ## Synthesis notes
 
-- `sr` is the only state register; all outputs are combinational taps of it.
-- Single `always @(posedge clk)` block.
-- `serial_out` and `parallel_out` are `assign` statements, not driven from `always`.
-- No `initial`, no `#` delays, no inferred latches.
+- Two `always` blocks: one `always @(*)` for combinational encoding (default assignments
+  before the loop prevent latches), one `always @(posedge clk)` for the registered output.
+- The combinational block drives `enc_out` and `enc_valid` wires; the sequential block
+  registers them into `out` and `valid`.
+- One driver per signal.
+- No `initial`, no `#` delays.
 - Yosys `check -assert` must report 0 problems.
 
 ## Verification tips (for Verifier)
 
-For WIDTH=8:
+For WIDTH=8, LOG2W=3:
 
-1. **Reset:** sr=0, serial_out=0, parallel_out=0 after rst=1.
-2. **Load:** assert load with parallel_in=8'hA5; next cycle parallel_out==8'hA5; serial_out==1 (MSB of A5).
-3. **Load priority over en:** assert both load=1 and en=1 simultaneously; load wins, no shift occurs.
-4. **Hold:** load=0, en=0 → register and outputs unchanged.
-5. **PISO 8-bit transmit:** load 8'hAB (10101011), then 8 shift cycles; serial_out sequence MSB-first: 1,0,1,0,1,0,1,1.
-6. **SIPO 8-bit receive:** shift in bits 1,0,1,1,0,1,0,0 (MSB-first sequence, entering at serial_in); after 8 cycles parallel_out == 8'hB4 (10110100 — the last shifted-in bits now occupy the LSBs).
-7. **serial_out timing:** reflects sr[WIDTH-1] of the current cycle combinationally (not one cycle delayed).
-8. **Reset mid-shift:** assert rst during a shift sequence; register clears immediately.
+1. **Reset:** out=0, valid=0 after rst=1.
+2. **Hold:** en=0 preserves out and valid.
+3. **Single bit:** `in=8'b00000001` → out=0, valid=1.
+4. **Single bit:** `in=8'b10000000` → out=7, valid=1.
+5. **Highest wins:** `in=8'b10100100` → out=7 (bit 7 set).
+6. **Middle bit:** `in=8'b00001000` → out=3, valid=1.
+7. **All ones:** `in=8'hFF` → out=7, valid=1.
+8. **Zero:** `in=8'h00` → out=0, valid=0.
+9. **Exhaustive:** for all 256 values of `in`, compare out to Python's `in.bit_length()-1`
+   (which gives the MSB position); valid = (in != 0).
+10. **Randomized:** random en/rst/in cycles against Python reference.
