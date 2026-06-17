@@ -1,68 +1,71 @@
-# Spec — pwm (Pulse Width Modulator)
+# Spec - sat_adder (Saturating Signed Adder)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
-Previous specs archived in `spec/`.
 
 ## Purpose
 
-Synchronous PWM generator. An internal free-running phase counter is compared against
-a programmable duty-cycle value to produce a single-bit output. Duty 0 → always low;
-duty at full scale (2^WIDTH − 1) → one clock high per period (≈ 100% but one cycle low
-per period when counter wraps, by the strict less-than comparison).
-
-Practical use: DAC output stage downstream of the DSP mixer chain, or motor/LED control.
+Synchronous signed saturating adder. Adds two signed two's-complement inputs and
+clips overflow to the representable signed range instead of wrapping. This is useful
+after DSP gain/mix stages where overflow should become a bounded output value.
 
 ## Parameters
 
 | Parameter | Default | Description |
 |---|---:|---|
-| `WIDTH` | 8 | Counter and duty-cycle resolution. Period = 2^WIDTH clocks. |
+| `WIDTH` | 16 | Signed input and output width. |
+
+For `WIDTH=16`, the output range is `-32768..32767`.
 
 ## Ports
 
-| Port    | Direction | Width   | Description |
+| Port | Direction | Width | Description |
 |---|---|---:|---|
-| `clk`   | input  | 1       | Clock. |
-| `rst`   | input  | 1       | Synchronous, active-high reset. Resets counter to 0 and output to 0. |
-| `en`    | input  | 1       | Enable. Counter and output only advance when en=1. |
-| `duty`  | input  | `WIDTH` | Unsigned duty-cycle threshold. Compared combinationally against the counter. |
-| `pwm_out` | output | 1     | Registered PWM bit. |
+| `clk` | input | 1 | Clock. |
+| `rst` | input | 1 | Synchronous, active-high reset. |
+| `en` | input | 1 | Sample enable. |
+| `a` | input | `WIDTH` | Signed addend. |
+| `b` | input | `WIDTH` | Signed addend. |
+| `sum` | output | `WIDTH` | Registered signed saturated result. |
 
-## Behaviour
+## Behavior
 
-All state changes on `posedge clk`. Priority: **reset > enable > hold**.
+All state changes occur on `posedge clk`.
 
-1. If `rst == 1`: counter ← 0; `pwm_out` ← 0.
-2. Else if `en == 1`:
-   - counter ← counter + 1 (wraps naturally at 2^WIDTH).
-   - `pwm_out` ← 1 if the **pre-increment** counter value is less than `duty`, else 0.
-3. Else: counter and `pwm_out` hold their values.
+Priority: **reset > enable > hold**.
 
-**Pre-increment comparison:** the output registered in the same clock cycle as the
-counter increment uses the counter value **before** the addition:
-`pwm_out <= (counter < duty)` then `counter <= counter + 1`.
-Both assignments are non-blocking and happen atomically at the posedge.
+1. If `rst == 1`, `sum <= 0`.
+2. Else if `en == 1`, compute the mathematical signed sum `a + b`.
+   - If the result is greater than signed max, `sum <= 2^(WIDTH-1)-1`.
+   - If the result is less than signed min, `sum <= -2^(WIDTH-1)`.
+   - Otherwise `sum <= a + b`.
+3. Else `sum` holds its previous value.
 
-**Duty extremes (WIDTH=8):**
-- `duty = 0`   → `pwm_out` is always 0 (counter is never < 0).
-- `duty = 255` → `pwm_out` is 1 for 255 out of 256 cycles (high when counter is 0..254; low when counter = 255 since ~(255 < 255)).
+## Overflow Rule
 
-## Synthesis constraints
+Use signed overflow detection:
 
-- Single `always @(posedge clk)` block.
-- Non-blocking `<=` for all assignments.
+- Positive overflow occurs when `a` and `b` are both non-negative but the wrapped
+  `WIDTH`-bit result is negative.
+- Negative overflow occurs when `a` and `b` are both negative but the wrapped
+  `WIDTH`-bit result is non-negative.
+
+## Synthesis Constraints
+
+- Use a single `always @(posedge clk)` block for state.
+- Use non-blocking assignments for `sum`.
+- Use explicit signed declarations for signed arithmetic.
 - No `initial`, no `#` delays, no inferred latches.
-- Counter is an internal `reg [WIDTH-1:0]`.
 - Yosys `check -assert` must report 0 problems.
 
-## Verification tips (for Verifier)
+## Verification Requirements
 
-For default WIDTH=8 (period = 256 clocks):
+For default `WIDTH=16`:
 
-1. **Reset:** after rst=1 for one cycle, counter=0 and pwm_out=0.
-2. **Hold:** en=0 holds both counter and pwm_out across multiple cycles.
-3. **Duty=0:** pwm_out stays 0 for a full 256-cycle period.
-4. **Duty=255:** pwm_out is 1 for 255 consecutive cycles, then 0 for 1 cycle.
-5. **Duty=128 (50%):** exactly 128 highs and 128 lows per 256-cycle period.
-6. **Period:** after 256 enabled clocks, counter returns to 0 (wraps).
-7. **Arbitrary duty:** count high cycles over one full period and confirm count == duty.
+- Reset drives `sum` to `0`.
+- Reset has priority over `en`.
+- `en=0` holds `sum`.
+- Normal positive, normal negative, and mixed-sign additions are exact.
+- Positive overflow saturates to `32767`.
+- Negative overflow saturates to `-32768`.
+- Boundary cases around `32767`, `-32768`, `0`, `1`, and `-1` are checked.
+- Random signed input pairs match a Python saturating-reference model.

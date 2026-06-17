@@ -5,27 +5,24 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `pwm`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `sat_adder`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (PWM generator, WIDTH=8, pre-increment comparison,
-  sync reset clears counter + output, enable-hold) and `rtl/pwm.v`.
-  Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (signed saturating adder, `WIDTH=16`, sync reset,
+  enable-hold, registered clipped result) and `rtl/sat_adder.v`. Yosys `check -assert`
+  reported 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
 
-- Iteration: 1
-- State: `verified`
-- Last change: Wrote and ran `tb/test_pwm.py`. Cocotb simulation passed reset,
-  reset priority, enable-hold, duty extremes, 50% duty, arbitrary full-period high
-  counts, period wrap, and randomized reset/enable/duty cycles. Yosys `check -assert`
-  passed with 0 reported problems.
+- Iteration: 0
+- State: `pending`
+- Last change: Awaiting first `sat_adder` simulation.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
