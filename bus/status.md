@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `rr_arb`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (round-robin arbiter, PORTS=4 LOG2P=2, two-pass
   scan from ptr then wrap, one-hot grant output, ptr advances past winner each cycle,
   sync reset, no en) and `rtl/rr_arb.v`. Yosys `check -assert` 0 problems, no latches.
@@ -22,12 +22,12 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote `tb/test_prio_enc.py`. Cocotb simulation passed synchronous reset,
-  reset priority over enable, enable/hold behavior, directed zero/single-bit/multi-bit
-  and all-ones cases, single-bit sweep across all positions, exhaustive 256-value
-  priority encoding, and 500 randomized reset/enable/input cycles against a Python
-  reference model. Yosys `check -assert` passed with 0 reported problems and no latches
-  inferred for the combinational encoder.
+- Last change: Wrote `tb/test_rr_arb.py`. Cocotb simulation passed synchronous reset,
+  single-request behavior, all-request round-robin sequence, sparse wrap-around cases,
+  idle-cycle pointer/index hold, exhaustive two-cycle request pairs, 800 randomized
+  request/reset cycles against a Python pointer model, and continuous-request
+  no-starvation checks. Yosys `check -assert` passed with 0 reported problems and no
+  latches inferred for the combinational selector.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -55,6 +55,7 @@ No human gate is required for this project unless a real external blocker appear
 - `gray_codec`
 - `shift_reg`
 - `prio_enc`
+- `rr_arb`
 
 ## Questions for Manager
 
