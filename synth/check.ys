@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/sat_adder.v
-hierarchy -check -top sat_adder
+read_verilog -sv rtl/barrel_shift.v
+hierarchy -check -top barrel_shift
 proc
 opt
-synth -top sat_adder
+synth -top barrel_shift
 check -assert
 stat

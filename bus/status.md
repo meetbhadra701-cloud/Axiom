@@ -5,17 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `sat_adder`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `barrel_shift`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (signed saturating adder, `WIDTH=16`, sync reset,
-  enable-hold, registered clipped result) and `rtl/sat_adder.v`. Yosys `check -assert`
-  reported 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (signed arithmetic barrel shifter, WIDTH=16,
+  SHAMT_WIDTH=4, dir=0 left shift / dir=1 arithmetic right shift, sync reset,
+  enable-hold) and `rtl/barrel_shift.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
