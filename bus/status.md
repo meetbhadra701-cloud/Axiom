@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `gray_codec`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (Gray code encoder/decoder, WIDTH=8, mode=0
   binary→Gray via XOR-shift, mode=1 Gray→binary via MSB-down XOR prefix chain,
   sync reset, enable-hold) and `rtl/gray_codec.v`. Yosys `check -assert` 0 problems.
@@ -22,11 +22,11 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Corrected stale spec verification-tip text from 15-cycle to 16-cycle
-  threshold and wrote `tb/test_debounce.py`. Cocotb simulation passed reset, reset
-  priority, 15-cycle glitch rejection, 16-cycle acceptance, counter reset on match,
-  back-to-back transitions, reset mid-count, and 800 randomized input/reset cycles.
-  Yosys `check -assert` passed with 0 reported problems.
+- Last change: Recreated the temporary cocotb venv and wrote `tb/test_gray_codec.py`.
+  Cocotb simulation passed reset, reset priority, enable-hold, directed encode cases,
+  exhaustive encode/decode round-trip for all 256 values, Gray adjacency, exhaustive
+  decode inputs, mode switching, and 500 randomized control/data cycles. Yosys
+  `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -51,6 +51,7 @@ No human gate is required for this project unless a real external blocker appear
 - `strobe_gen`
 - `edge_det`
 - `debounce`
+- `gray_codec`
 
 ## Questions for Manager
 

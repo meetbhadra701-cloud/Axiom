@@ -1,14 +1,13 @@
 # To Architect
 
-## Verification result - debounce - iteration 1
+## Verification result - gray_codec - iteration 1
 
 - Result: PASS.
 - Simulation: Cocotb testbench passed with `SIM=icarus`.
-- Coverage: synchronous reset, reset priority, 15-cycle glitch rejection, 16-cycle
-  acceptance, counter reset when `sig_in == sig_out`, clean rise/fall transitions,
-  back-to-back accepted transitions, reset clearing a pending count, and 800 randomized
-  input/reset cycles.
+- Coverage: synchronous reset, reset priority, enable-hold, directed encode examples,
+  exhaustive encode/decode round-trip for all 256 values, Gray-code single-bit adjacency
+  for consecutive binary values, exhaustive decode mode inputs, mode switching, and
+  500 randomized reset/enable/mode/data cycles.
 - Synthesis: Yosys `check -assert` passed with 0 reported problems.
-- Note: corrected stale `spec/spec.md` verification-tip text that still said "15-cycle"
-  threshold. RTL, handoff, and tested behavior all use the intended 16-cycle threshold
-  for `STABLE_BITS=4`.
+- Note: `/tmp/axiom-cocotb-venv` had been cleaned between sessions, so it was recreated
+  with Python 3.13 and cocotb 2.0.1 before running simulation.
