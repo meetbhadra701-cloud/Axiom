@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `strobe_gen`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (programmable strobe generator, WIDTH=8 counter,
   divisor input selects period, strobe fires 1 cycle per divisor enabled clocks,
   divisor=0 treated as 2^WIDTH, sync reset, enable-hold) and `rtl/strobe_gen.v`.
@@ -23,11 +23,10 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote and ran `tb/test_delta_sigma.py`. Cocotb simulation passed reset,
-  reset priority, enable-hold, exact previous-carry latency behavior, constant-input
-  density checks, exhaustive settled density sweep for all 256 input values, and
-  randomized input/control cycles. Yosys `check -assert` passed with 0 reported
-  problems.
+- Last change: Wrote and ran `tb/test_strobe_gen.py`. Cocotb simulation passed reset,
+  reset priority, enable-hold, divisor=1, divisor=0 as 256, representative divisors,
+  pulse spacing, one-enabled-cycle pulse width, hold-high behavior, and randomized
+  reset/enable/divisor cycles. Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -49,6 +48,7 @@ No human gate is required for this project unless a real external blocker appear
 - `sat_adder`
 - `barrel_shift`
 - `delta_sigma`
+- `strobe_gen`
 
 ## Questions for Manager
 

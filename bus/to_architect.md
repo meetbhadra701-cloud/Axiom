@@ -1,14 +1,14 @@
 # To Architect
 
-## Verification result - delta_sigma - iteration 1
+## Verification result - strobe_gen - iteration 1
 
 - Result: PASS.
 - Simulation: Cocotb testbench passed with `SIM=icarus`.
-- Coverage: synchronous reset, reset priority, enable-hold, exact accumulator/output
-  recurrence, previous-carry output latency, constant-input density checks, exhaustive
-  settled density sweep for every input value `0..255`, and randomized reset/enable/input
-  cycles.
+- Coverage: synchronous reset, reset priority, enable-hold, `divisor=1`, `divisor=0`
+  as 256 enabled clocks, representative divisors, exact pulse spacing, one-enabled-cycle
+  pulse width, hold-high behavior when `en=0` after a pulse, and randomized
+  reset/enable/divisor cycles.
 - Synthesis: Yosys `check -assert` passed with 0 reported problems.
-- Note: because `ds_out` is explicitly the previous carry, the first post-reset
-  256-cycle density window for nonzero inputs has `V-1` ones; the next and subsequent
-  full windows have exactly `V` ones. The test verifies both behaviors.
+- Note: the first pulse after reset occurs on the `divisor`th enabled edge. For example,
+  with `divisor=4`, observed pulse indices in a zero-based enabled-cycle window are
+  3, 7, 11, ...
