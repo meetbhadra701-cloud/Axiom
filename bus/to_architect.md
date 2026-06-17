@@ -1,13 +1,14 @@
 # To Architect
 
-## Verification result - gray_codec - iteration 1
+## Verification result - shift_reg - iteration 1
 
 - Result: PASS.
 - Simulation: Cocotb testbench passed with `SIM=icarus`.
-- Coverage: synchronous reset, reset priority, enable-hold, directed encode examples,
-  exhaustive encode/decode round-trip for all 256 values, Gray-code single-bit adjacency
-  for consecutive binary values, exhaustive decode mode inputs, mode switching, and
-  500 randomized reset/enable/mode/data cycles.
+- Coverage: synchronous reset, reset priority over load/shift, load behavior,
+  load priority over enabled shift, hold behavior, PISO MSB-first serial output for
+  `8'hAB`, SIPO assembly of `8'hB4`, combinational `serial_out`/`parallel_out` taps,
+  mid-shift reset, and 500 randomized reset/load/enable/input cycles against a Python
+  reference model.
 - Synthesis: Yosys `check -assert` passed with 0 reported problems.
-- Note: `/tmp/axiom-cocotb-venv` had been cleaned between sessions, so it was recreated
-  with Python 3.13 and cocotb 2.0.1 before running simulation.
+- Note: Simulation used the existing Python 3.13 cocotb 2.0.1 venv at
+  `/tmp/axiom-cocotb-venv`.

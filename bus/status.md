@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `shift_reg`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (universal left-shift register, WIDTH=8, load
   priority over en, serial_in enters at LSB, serial_out/parallel_out are combinational
   taps of sr, sync reset) and `rtl/shift_reg.v`. Yosys `check -assert` 0 problems.
@@ -22,11 +22,11 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Recreated the temporary cocotb venv and wrote `tb/test_gray_codec.py`.
-  Cocotb simulation passed reset, reset priority, enable-hold, directed encode cases,
-  exhaustive encode/decode round-trip for all 256 values, Gray adjacency, exhaustive
-  decode inputs, mode switching, and 500 randomized control/data cycles. Yosys
-  `check -assert` passed with 0 reported problems.
+- Last change: Wrote `tb/test_shift_reg.py`. Cocotb simulation passed synchronous reset,
+  reset priority over load/shift, load, load priority over enabled shift, hold, PISO
+  MSB-first serial output, SIPO receive assembly, combinational output tap timing,
+  mid-shift reset, and 500 randomized reset/load/enable/input cycles against a Python
+  reference model. Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -52,6 +52,7 @@ No human gate is required for this project unless a real external blocker appear
 - `edge_det`
 - `debounce`
 - `gray_codec`
+- `shift_reg`
 
 ## Questions for Manager
 
