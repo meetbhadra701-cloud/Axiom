@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/gray_codec.v
-hierarchy -check -top gray_codec
+read_verilog -sv rtl/shift_reg.v
+hierarchy -check -top shift_reg
 proc
 opt
-synth -top gray_codec
+synth -top shift_reg
 check -assert
 stat

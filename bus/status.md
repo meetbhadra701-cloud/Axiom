@@ -5,17 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `gray_codec`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `shift_reg`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (Gray code encoder/decoder, WIDTH=8, mode=0
-  binary→Gray via XOR-shift, mode=1 Gray→binary via MSB-down XOR prefix chain,
-  sync reset, enable-hold) and `rtl/gray_codec.v`. Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (universal left-shift register, WIDTH=8, load
+  priority over en, serial_in enters at LSB, serial_out/parallel_out are combinational
+  taps of sr, sync reset) and `rtl/shift_reg.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
