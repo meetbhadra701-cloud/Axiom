@@ -5,17 +5,18 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `barrel_shift`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `delta_sigma`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (signed arithmetic barrel shifter, WIDTH=16,
-  SHAMT_WIDTH=4, dir=0 left shift / dir=1 arithmetic right shift, sync reset,
-  enable-hold) and `rtl/barrel_shift.v`. Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (1st-order delta-sigma modulator, WIDTH=8,
+  WIDTH+1-bit accumulator, carry-cleared-before-add, ds_out = carry from previous
+  cycle, sync reset, enable-hold) and `rtl/delta_sigma.v`. Yosys `check -assert`
+  0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

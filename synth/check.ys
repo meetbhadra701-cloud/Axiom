@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/barrel_shift.v
-hierarchy -check -top barrel_shift
+read_verilog -sv rtl/delta_sigma.v
+hierarchy -check -top delta_sigma
 proc
 opt
-synth -top barrel_shift
+synth -top delta_sigma
 check -assert
 stat
