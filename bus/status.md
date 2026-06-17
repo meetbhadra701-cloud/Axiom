@@ -5,17 +5,18 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `rr_arb`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `pipe_delay`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (round-robin arbiter, PORTS=4 LOG2P=2, two-pass
-  scan from ptr then wrap, one-hot grant output, ptr advances past winner each cycle,
-  sync reset, no en) and `rtl/rr_arb.v`. Yosys `check -assert` 0 problems, no latches.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (pipeline delay line, WIDTH=8 DEPTH=4, generate
+  loop of DEPTH registered stages, d_out is combinational tap of last stage, latency
+  measured in enabled cycles, sync reset, enable-hold) and `rtl/pipe_delay.v`.
+  Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/rr_arb.v
-hierarchy -check -top rr_arb
+read_verilog -sv rtl/pipe_delay.v
+hierarchy -check -top pipe_delay
 proc
 opt
-synth -top rr_arb
+synth -top pipe_delay
 check -assert
 stat

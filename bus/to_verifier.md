@@ -1,23 +1,20 @@
 # To Verifier
 
-v1 of `rtl/rr_arb.v` ready, spec in `spec/spec.md` (round-robin arbiter). Ready for simulation.
+v1 of `rtl/pipe_delay.v` ready, spec in `spec/spec.md` (pipeline delay line). Ready for simulation.
 
-- Module: `rr_arb` (params `PORTS=4`, `LOG2P=2`)
-- Top-level: `rr_arb`
-- Ports: `clk`, `rst` (sync active-high), `req[3:0]`, registered `grant[3:0]` (one-hot),
-  registered `grant_idx[1:0]` (binary index of winner)
-- No `en` — arbiter runs every cycle.
-- Algorithm: two-pass combinational scan (defaults prevent latches):
-    Pass 1: lowest index ≥ ptr with req set → winner.
-    Pass 2 (wrap): if Pass 1 found nothing, lowest index overall with req set → winner.
-  After grant: ptr ← (winner+1) % PORTS. No requests → grant=0, ptr holds.
-- Yosys `check -assert`: 0 problems. "No latch inferred" confirmed for all combinational regs.
+- Module: `pipe_delay` (params `WIDTH=8`, `DEPTH=4`)
+- Top-level: `pipe_delay`
+- Ports: `clk`, `rst` (sync active-high), `en`, `d_in[7:0]`, `d_out[7:0]` (wire tap of pipe[3])
+- Latency: d_out reflects d_in from exactly DEPTH=4 *enabled* clock cycles ago.
+- All stages freeze together when en=0 — disabled cycles do not consume pipeline positions.
+- Implemented with generate loop; stage[0] takes d_in, each subsequent stage takes the previous.
+- d_out is an assign wire (combinational), not a separate register.
+- Yosys `check -assert`: 0 problems.
 - Iteration: 1
 
 Verification tips:
-- All 4 ports asserted (req=4'hF) for 8 cycles → grant sequence 0001,0010,0100,1000,0001,…
-- Wrap: after granting port 3, ptr=0; port 0 granted next.
-- Idle (req=0): grant=0, ptr holds.
-- Two ports active (e.g. req=4'b0101, ports 0 and 2): alternates 0001,0100,0001,…
-- No starvation: any port continuously asserting req gets granted within PORTS cycles.
-- Reset: grant=0, grant_idx=0, ptr=0.
+- Single pulse: d_in=0xAB for 1 cycle then 0x00; d_out shows 0xAB at cycle 4 (DEPTH en-cycles later).
+- Sequence trace: d_in=1,2,3,4,5,0,0,0,0 → d_out=0,0,0,0,1,2,3,4,5 (DEPTH-cycle delay).
+- En gating: insert en=0 cycles; d_out pauses and resumes (delay is in enabled cycles).
+- DEPTH=1: verify d_out is d_in from 1 cycle ago.
+- Randomized: Python deque(maxlen=4), push d_in on en=1, verify d_out matches popleft.
