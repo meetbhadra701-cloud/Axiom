@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `barrel_shift`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (signed arithmetic barrel shifter, WIDTH=16,
   SHAMT_WIDTH=4, dir=0 left shift / dir=1 arithmetic right shift, sync reset,
   enable-hold) and `rtl/barrel_shift.v`. Yosys `check -assert` 0 problems.
@@ -22,10 +22,10 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote and ran `tb/test_sat_adder.py`. Cocotb simulation passed reset,
-  reset priority, enable-hold, directed signed boundary cases, positive/negative
-  saturation, and 600 randomized signed reference-model cycles. Yosys `check -assert`
-  passed with 0 reported problems.
+- Last change: Wrote and ran `tb/test_barrel_shift.py`. Cocotb simulation passed reset,
+  reset priority, enable-hold, left/right shift-by-zero identity, wrapping left shifts,
+  arithmetic right shifts with sign extension, max shift cases, and 600 randomized
+  signed reference-model cycles. Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -45,6 +45,7 @@ No human gate is required for this project unless a real external blocker appear
 - `mixer`
 - `pwm`
 - `sat_adder`
+- `barrel_shift`
 
 ## Questions for Manager
 
