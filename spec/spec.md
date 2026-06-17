@@ -59,17 +59,17 @@ It resets to 0 whenever the two match or whenever `sig_out` updates.
 
 ## Verification tips (for Verifier)
 
-For STABLE_BITS=4 (stable threshold = 15 consecutive cycles):
+For STABLE_BITS=4 (stable threshold = 16 consecutive differing cycles):
 
 1. **Reset:** counter=0, sig_out=0 after rst=1.
 2. **Clean transition:** drive sig_in=1 continuously; sig_out→1 on cycle 16
    (counter increments from 0 to 15 over 15 cycles, fires on the 16th).
 3. **Short glitch:** drive sig_in=1 for only 15 cycles then back to 0; sig_out stays 0.
 4. **Counter reset on match:** drive sig_in=1 for 10 cycles, then sig_in=0 for 1 cycle;
-   counter resets; another 15 cycles of sig_in=1 needed before sig_out updates.
-5. **Fall transition:** sig_in=0 for 15+ cycles after sig_out is 1; sig_out→0.
-6. **Glitch immunity:** interleave sig_in pulses shorter than 15 cycles; sig_out never changes.
+   counter resets; another 16 cycles of sig_in=1 needed before sig_out updates.
+5. **Fall transition:** sig_in=0 for 16+ cycles after sig_out is 1; sig_out→0.
+6. **Glitch immunity:** interleave sig_in pulses shorter than 16 cycles; sig_out never changes.
 7. **Back-to-back transitions:** after sig_out updates to 1, immediately drive sig_in=0
-   for 15 cycles; sig_out→0 correctly.
+   for 16 cycles; sig_out→0 correctly.
 8. **Randomized:** random sig_in patterns with known stable runs; verify sig_out only
-   changes after a verified 15-cycle stable stretch.
+   changes after a verified 16-cycle stable stretch.
