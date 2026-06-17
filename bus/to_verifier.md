@@ -1,24 +1,22 @@
 # To Verifier
 
-v1 of `rtl/strobe_gen.v` ready, spec in `spec/spec.md` (programmable strobe
-generator / clock-enable rate divider). Ready for simulation.
+v1 of `rtl/edge_det.v` ready, spec in `spec/spec.md` (two-stage synchronous edge
+detector). Ready for simulation.
 
-- Module: `strobe_gen` (param `WIDTH=8`)
-- Top-level: `strobe_gen`
-- Ports: `clk`, `rst` (sync active-high), `en`, `divisor[7:0]` (period in enabled
-  clocks), registered `strobe` (1-cycle pulse)
-- Priority: reset > enable > hold.
-- Behavior: internal counter 0..divisor−1. When counter == divisor−1: counter resets
-  to 0, strobe = 1. Otherwise: counter+1, strobe = 0. Hold preserves both.
-- divisor=0 is treated as 2^WIDTH=256 (counter wraps naturally via WIDTH-bit underflow).
-- strobe fires on the first cycle of each new period (counter==0 after the reset edge).
+- Module: `edge_det` (no parameters)
+- Top-level: `edge_det`
+- Ports: `clk`, `rst` (sync active-high), `sig_in`, registered `rise`, `fall`, `any_edge`
+- No `en` port — detection runs continuously; rst is the only control.
+- Internal: `pipe[1:0]`; pipe[0] = current sample, pipe[1] = one cycle older.
+- rise = pipe[0] & ~pipe[1]; fall = ~pipe[0] & pipe[1]; any_edge = pipe[0] ^ pipe[1].
+- All three outputs are registered — 2-cycle latency after input transition.
 - Yosys `check -assert`: 0 problems.
 - Iteration: 1
 
 Verification tips:
-- divisor=1: strobe high every enabled cycle.
-- divisor=4: spacing between strobe pulses is exactly 4 enabled clocks.
-- divisor=0 (=256): 256 enabled clocks between strobes.
-- strobe width: always exactly 1 enabled cycle (never 2).
-- Period check: count enabled clocks between rising edges of strobe → must equal divisor.
-- Hold: en=0 freezes counter; strobe holds last value (may be 1 if hold happened on strobe cycle).
+- Rising edge: sig_in 0→1 on cycle N; rise=1 on cycle N+2 for exactly 1 cycle.
+- Falling edge: sig_in 1→0 on cycle N; fall=1 on cycle N+2 for exactly 1 cycle.
+- Sustained: no further pulses while sig_in held constant.
+- 1-cycle glitch (0→1→0): rise fires cycle+2, fall fires cycle+3, any_edge fires both.
+- any_edge == rise | fall at all times.
+- Reset during in-flight: pipe and all outputs clear to 0.

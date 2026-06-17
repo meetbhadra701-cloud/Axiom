@@ -1,73 +1,75 @@
-# Spec — strobe_gen (Programmable Strobe Generator)
+# Spec — edge_det (Edge Detector)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 Previous specs archived in `spec/`.
 
 ## Purpose
 
-Programmable rate divider that produces a single-clock-wide enable pulse (`strobe`)
-every `divisor` clock cycles. Used to connect DSP stages running at different sample
-rates — for example, driving a FIR filter at 1/8 the system clock by routing
-`strobe` to the FIR's `en` input.
+Two-stage synchronous edge detector. Samples `sig_in` into a two-flip-flop pipeline
+and produces registered single-cycle pulses on rising edges, falling edges, or either.
+Common uses: detecting button presses, ADC-ready strobes, protocol framing signals,
+or any 1-bit transition that needs a single-cycle downstream trigger.
+
+Note: this module does **not** synchronise asynchronous inputs across clock domains
+(for that, use a dedicated 2-FF CDC synchroniser). `sig_in` is assumed to be
+synchronous to `clk`.
 
 ## Parameters
 
-| Parameter | Default | Description |
-|---|---:|---|
-| `WIDTH` | 8 | Counter width. Maximum divisor = 2^WIDTH. |
+None. The module is purely single-bit.
 
 ## Ports
 
-| Port      | Direction | Width   | Description |
+| Port       | Direction | Width | Description |
 |---|---|---:|---|
-| `clk`     | input  | 1       | Clock. |
-| `rst`     | input  | 1       | Synchronous, active-high reset. Resets counter to 0 and strobe to 0. |
-| `en`      | input  | 1       | Module enable. Counter only advances and strobe only fires when high. |
-| `divisor` | input  | `WIDTH` | Number of enabled clock cycles between strobes. Range: 1..2^WIDTH. See note. |
-| `strobe`  | output | 1       | Registered 1-cycle-wide pulse. High for exactly one `en` cycle per `divisor` cycles. |
+| `clk`      | input  | 1 | Clock. |
+| `rst`      | input  | 1 | Synchronous, active-high reset. Clears pipeline and all outputs. |
+| `sig_in`   | input  | 1 | Input signal to observe. |
+| `rise`     | output | 1 | Registered 1-cycle pulse on 0→1 transition. |
+| `fall`     | output | 1 | Registered 1-cycle pulse on 1→0 transition. |
+| `any_edge` | output | 1 | Registered 1-cycle pulse on either transition (`rise | fall`). |
 
-**Divisor note:** `divisor = 0` is treated as `2^WIDTH` (maximum period, free-running).
-This falls out naturally from the counter comparison and requires no special casing.
+No `en` port — detection runs continuously; `rst` is the only control.
 
 ## Behaviour
 
-All state changes on `posedge clk`. Priority: **reset > enable > hold**.
+All state changes on `posedge clk`.
 
-Internal state: `counter`, a WIDTH-bit register counting `0 .. divisor−1`.
+Internal pipeline: `pipe[1:0]`, where `pipe[0]` is the most recent sample of
+`sig_in` and `pipe[1]` is one cycle older. On each rising edge:
 
-1. If `rst == 1`: `counter <= 0`, `strobe <= 0`.
-2. Else if `en == 1`:
-   - If `counter == divisor − 1` (counter reached the end of the period):
-     - `counter <= 0`
-     - `strobe <= 1`
-   - Else:
-     - `counter <= counter + 1`
-     - `strobe <= 0`
-3. Else: `counter` and `strobe` hold (strobe is not forced low on hold — it retains
-   its last registered value; if `en` went low on the same cycle strobe fired, the
-   strobe output holds `1` until `en` goes high again and the counter advances).
+1. If `rst == 1`:
+   - `pipe <= 2'b00`
+   - `rise <= 0`, `fall <= 0`, `any_edge <= 0`
+2. Else:
+   - `pipe[0] <= sig_in`
+   - `pipe[1] <= pipe[0]`
+   - `rise     <= pipe[0] & ~pipe[1]`   — 0→1 detected in the previous pair
+   - `fall     <= ~pipe[0] & pipe[1]`   — 1→0 detected in the previous pair
+   - `any_edge <= pipe[0] ^ pipe[1]`    — either transition
 
-**Strobe timing:** strobe fires on the cycle the counter resets, i.e. the first `en`
-cycle of each new period. Counter goes to 0 and strobe = 1 on the same edge.
+**Latency:** `rise`/`fall`/`any_edge` are valid 2 clock cycles after the input transition.
+- Cycle 0: transition occurs on `sig_in`.
+- Cycle 1: `pipe[0]` captures the new value.
+- Cycle 2: `pipe[1]` has the old value, `pipe[0]` has the new; outputs fire.
 
 ## Synthesis constraints
 
-- Single `always @(posedge clk)` block, non-blocking `<=`.
-- Counter comparison `counter == divisor - 1` is combinational; both are registered in the same cycle.
+- Single `always @(posedge clk)` block; five non-blocking assignments.
+- No combinational outputs — all three edge flags are registered.
 - No `initial`, no `#` delays, no inferred latches.
 - Yosys `check -assert` must report 0 problems.
 
 ## Verification tips (for Verifier)
 
-For WIDTH=8:
-
-1. **Reset:** counter=0, strobe=0 after rst=1.
-2. **Hold:** en=0 freezes counter and strobe.
-3. **divisor=1:** strobe fires every enabled cycle (100% duty counter).
-4. **divisor=4:** strobe fires on cycles 0, 4, 8, … (every 4th enabled clock).
-5. **divisor=256 (=0 per note):** strobe fires every 256 enabled clocks.
-6. **Period verification:** for divisor=N, count enabled cycles between successive
-   rising edges of strobe; assert spacing is exactly N.
-7. **strobe width:** strobe is high for exactly 1 enabled cycle per period.
-8. **Divisor change mid-run:** changing divisor while running produces at most one
-   truncated or extended period; subsequent periods are correct.
+1. **Reset:** pipe=00, rise=fall=any_edge=0 after rst=1.
+2. **Rising edge:** drive sig_in=0 for 3 cycles, then sig_in=1; on the 2nd cycle
+   after the transition, `rise=1` for exactly 1 cycle; `fall=0`, `any_edge=1`.
+3. **Falling edge:** sig_in=1 then sig_in=0; `fall=1` for 1 cycle; `rise=0`, `any_edge=1`.
+4. **Sustained high:** sig_in stays 1 for many cycles; all outputs stay 0 after the
+   initial rise pulse.
+5. **Sustained low:** all outputs stay 0.
+6. **Glitch (1-cycle pulse):** sig_in goes 0→1→0 in successive cycles; rise fires on
+   the cycle pipe[0]=1,pipe[1]=0; fall fires the next cycle; any_edge fires for both.
+7. **Reset clears in-flight:** assert rst during a pending transition; outputs clear.
+8. **any_edge == rise | fall** at all times.

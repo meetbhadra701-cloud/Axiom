@@ -5,18 +5,17 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `strobe_gen`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `edge_det`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (programmable strobe generator, WIDTH=8 counter,
-  divisor input selects period, strobe fires 1 cycle per divisor enabled clocks,
-  divisor=0 treated as 2^WIDTH, sync reset, enable-hold) and `rtl/strobe_gen.v`.
-  Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (two-stage synchronous edge detector, no params,
+  registered rise/fall/any_edge outputs, 2-cycle latency, sync reset clears pipeline)
+  and `rtl/edge_det.v`. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
