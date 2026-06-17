@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `prio_enc`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (priority encoder, WIDTH=8 LOG2W=3, highest-index
   set bit wins, combinational for-loop with defaults feeds registered out/valid,
   sync reset, enable-hold) and `rtl/prio_enc.v`. Yosys `check -assert` 0 problems;
@@ -23,11 +23,12 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote `tb/test_shift_reg.py`. Cocotb simulation passed synchronous reset,
-  reset priority over load/shift, load, load priority over enabled shift, hold, PISO
-  MSB-first serial output, SIPO receive assembly, combinational output tap timing,
-  mid-shift reset, and 500 randomized reset/load/enable/input cycles against a Python
-  reference model. Yosys `check -assert` passed with 0 reported problems.
+- Last change: Wrote `tb/test_prio_enc.py`. Cocotb simulation passed synchronous reset,
+  reset priority over enable, enable/hold behavior, directed zero/single-bit/multi-bit
+  and all-ones cases, single-bit sweep across all positions, exhaustive 256-value
+  priority encoding, and 500 randomized reset/enable/input cycles against a Python
+  reference model. Yosys `check -assert` passed with 0 reported problems and no latches
+  inferred for the combinational encoder.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -54,6 +55,7 @@ No human gate is required for this project unless a real external blocker appear
 - `debounce`
 - `gray_codec`
 - `shift_reg`
+- `prio_enc`
 
 ## Questions for Manager
 
