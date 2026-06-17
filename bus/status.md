@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `edge_det`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (two-stage synchronous edge detector, no params,
   registered rise/fall/any_edge outputs, 2-cycle latency, sync reset clears pipeline)
   and `rtl/edge_det.v`. Yosys `check -assert` 0 problems.
@@ -22,10 +22,11 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote and ran `tb/test_strobe_gen.py`. Cocotb simulation passed reset,
-  reset priority, enable-hold, divisor=1, divisor=0 as 256, representative divisors,
-  pulse spacing, one-enabled-cycle pulse width, hold-high behavior, and randomized
-  reset/enable/divisor cycles. Yosys `check -assert` passed with 0 reported problems.
+- Last change: Wrote and ran `tb/test_edge_det.py`. Cocotb simulation passed reset,
+  reset priority, sustained high/low, registered rise/fall/any-edge pulses, 1-cycle
+  input pulse behavior, reset clearing an in-flight transition, `any_edge == rise|fall`,
+  and 600 randomized signal/reset cycles. Yosys `check -assert` passed with 0 reported
+  problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -48,6 +49,7 @@ No human gate is required for this project unless a real external blocker appear
 - `barrel_shift`
 - `delta_sigma`
 - `strobe_gen`
+- `edge_det`
 
 ## Questions for Manager
 
