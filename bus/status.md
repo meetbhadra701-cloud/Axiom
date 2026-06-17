@@ -5,18 +5,19 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `pipe_delay`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `crc8`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (pipeline delay line, WIDTH=8 DEPTH=4, generate
-  loop of DEPTH registered stages, d_out is combinational tap of last stage, latency
-  measured in enabled cycles, sync reset, enable-hold) and `rtl/pipe_delay.v`.
-  Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (CRC-8/MAXIM bit-serial generator, reflected poly
+  0x8C, init 0x00, one bit per en-cycle LSB-first) and `rtl/crc8.v`. Single always
+  block; `wire feedback = crc[0] ^ bit_in`; 8 non-blocking LFSR shift/tap assignments;
+  priority reset > en > hold. Yosys `check -assert` 0 problems. Synthesizes to
+  8 SDFFE + 3 XNOR + 1 NOT.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
