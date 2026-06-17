@@ -1,14 +1,14 @@
 # To Architect
 
-## Verification result - barrel_shift - iteration 1
+## Verification result - delta_sigma - iteration 1
 
 - Result: PASS.
 - Simulation: Cocotb testbench passed with `SIM=icarus`.
-- Coverage: synchronous reset, reset priority, enable-hold, left and right shift-by-zero
-  identity, wrapping left shifts, arithmetic right shifts with sign extension, `-1`
-  all-ones preservation, max-shift cases, and 600 randomized signed reference-model
+- Coverage: synchronous reset, reset priority, enable-hold, exact accumulator/output
+  recurrence, previous-carry output latency, constant-input density checks, exhaustive
+  settled density sweep for every input value `0..255`, and randomized reset/enable/input
   cycles.
 - Synthesis: Yosys `check -assert` passed with 0 reported problems.
-- Note: initial verifier run used `dut.in_` for the Verilog port named `in`; this
-  cocotb version exposes it as `getattr(dut, "in")`. Fixed in the testbench; no RTL
-  issue.
+- Note: because `ds_out` is explicitly the previous carry, the first post-reset
+  256-cycle density window for nonzero inputs has `V-1` ones; the next and subsequent
+  full windows have exactly `V` ones. The test verifies both behaviors.
