@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `iir_biquad`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (2nd-order IIR biquad Direct Form I, DATA_W=16
   COEF_W=16 FRAC_W=14) and `rtl/iir_biquad.v`. Five signed multiplies into a 35-bit
   accumulator; truncate by FRAC_W to DATA_W; single always block registers result and
@@ -23,11 +23,11 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote `tb/test_one_hot.py`. Cocotb simulation passed default `N=8,
-  LOG2W=3` and override `N=16, LOG2W=4` runs covering reset, reset priority, hold,
-  directed indices, exhaustive all-index decode, one-hot exclusivity, reset clearing an
-  active output, and 500 randomized reset/enable/index cycles against a Python reference.
-  Yosys `check -assert` passed with 0 reported problems.
+- Last change: Wrote `tb/test_iir_biquad.py`. Cocotb simulation passed reset, reset
+  priority, y_valid strobe, enable-low hold, identity pass-through, half-gain truncation,
+  DC-blocker impulse response, large signed accumulator stress, 60 randomized sample
+  sequences, and 300 randomized reset/enable/sample cycles against a Python fixed-point
+  reference. Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -59,6 +59,7 @@ No human gate is required for this project unless a real external blocker appear
 - `pipe_delay`
 - `crc8`
 - `one_hot`
+- `iir_biquad`
 
 ## Questions for Manager
 
