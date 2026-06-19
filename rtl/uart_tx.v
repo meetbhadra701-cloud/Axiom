@@ -80,8 +80,15 @@ module uart_tx #(
                 STOP: begin
                     if (baud_cnt == CLKDIV_MAX) begin
                         baud_cnt <= {CLKDIV_W{1'b0}};
-                        state    <= IDLE;
-                        busy     <= 1'b0;
+                        if (en) begin
+                            data_reg <= data;
+                            state    <= START;
+                            tx       <= 1'b0;
+                            busy     <= 1'b1;
+                        end else begin
+                            state    <= IDLE;
+                            busy     <= 1'b0;
+                        end
                     end else begin
                         baud_cnt <= baud_cnt + 1'b1;
                     end
