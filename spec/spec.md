@@ -1,88 +1,68 @@
-# Spec — crc8 (CRC-8/MAXIM Generator)
+# Spec — one_hot (Binary-to-One-Hot Decoder)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
-Previous specs archived in `spec/`.
 
 ## Purpose
 
-Bit-serial CRC-8/MAXIM (Dallas 1-Wire) accumulator. Processes one bit per enabled
-clock cycle, accumulating the running checksum in an 8-bit LFSR. Used for data
-integrity in DS18B20 temperature sensor reads and other 1-Wire protocol frames.
-
-## CRC variant
-
-| Property    | Value |
-|---|---|
-| Name        | CRC-8/MAXIM (also CRC-8/Dallas, iButton) |
-| Polynomial  | x^8 + x^5 + x^4 + 1 (normal: 0x31; reflected: 0x8C) |
-| Reflect in  | Yes — data bits processed LSB first |
-| Reflect out | Yes |
-| Init        | 0x00 |
-| XorOut      | 0x00 |
-| Check       | CRC of ASCII "123456789" = 0xA1 |
+Registered binary-to-one-hot decoder. Converts a LOG2W-bit binary index to an N-bit
+one-hot output with exactly one bit set. Used for bus demuxing, state decode, and
+priority output stages.
 
 ## Parameters
 
-None. The polynomial and bit width are fixed for CRC-8/MAXIM.
+| Parameter | Default | Description |
+|---|---:|---|
+| `N`     | 8 | Output width (number of one-hot bits). Must be ≥ 2. |
+| `LOG2W` | 3 | Bit width of the binary input. Must equal ceil(log2(N)). |
+
+The two parameters are kept separate (no `$clog2`) for port-declaration portability,
+matching the library convention established in `prio_enc` and `rr_arb`.
 
 ## Ports
 
-| Port     | Direction | Width | Description |
+| Port  | Direction | Width    | Description |
 |---|---|---:|---|
-| `clk`    | input  | 1 | Clock. |
-| `rst`    | input  | 1 | Synchronous, active-high reset. Clears CRC to 0x00. |
-| `en`     | input  | 1 | Shift enable. CRC advances by one bit when high. |
-| `bit_in` | input  | 1 | Next data bit to accumulate (LSB of each byte first). |
-| `crc`    | output | 8 | Registered running CRC. Valid after all data bits are processed. |
+| `clk` | input  | 1        | Clock. |
+| `rst` | input  | 1        | Synchronous, active-high reset. Clears `out` to all-zeros. |
+| `en`  | input  | 1        | Load enable. `out` updates on the next rising edge when high. |
+| `in`  | input  | LOG2W    | Binary index. |
+| `out` | output | N        | One-hot encoded output (registered). |
 
 ## Behaviour
 
 All state changes on `posedge clk`. Priority: **reset > enable > hold**.
 
-**LFSR step (one bit, reflected polynomial 0x8C):**
-```
-feedback = crc[0] ^ bit_in
-crc[0] <= crc[1]
-crc[1] <= crc[2]
-crc[2] <= crc[3] ^ feedback    // poly bit 2 of 0x8C
-crc[3] <= crc[4] ^ feedback    // poly bit 3 of 0x8C
-crc[4] <= crc[5]
-crc[5] <= crc[6]
-crc[6] <= crc[7]
-crc[7] <= feedback             // poly bit 7 of 0x8C (MSB/implicit)
-```
+On each rising clock edge:
+- If `rst`: `out ← 0` (all bits clear).
+- Else if `en`: `out ← 1 << in` (bit `in` set, all others clear).
+- Else: hold `out` unchanged.
 
-`feedback` is the bit being shifted out (`crc[0]`) XOR the new data bit. The taps at
-positions 2, 3, and 7 match the reflected polynomial 0x8C (= 10001100b; bits 7,3,2).
+The combinational decode is `wire [N-1:0] decoded = {{(N-1){1'b0}}, 1'b1} << in`.
+This gives exactly N bits with a single 1 at position `in`.
 
-**Accumulating a byte:** drive 8 consecutive `en=1` cycles with `bit_in` = byte[0],
-byte[1], …, byte[7] (LSB first).
+**Examples (N=8):**
 
-**Known test vector:** after processing a single leading 1-bit from reset, crc = 0x8C.
-After processing the full byte 0x01 (bits: 1,0,0,0,0,0,0,0 LSB-first), crc = 0x5E.
+| `in` (binary) | `out` (one-hot, bit 7..0) |
+|---|---|
+| 3'b000 | 8'b00000001 |
+| 3'b001 | 8'b00000010 |
+| 3'b011 | 8'b00001000 |
+| 3'b111 | 8'b10000000 |
 
 ## Synthesis notes
 
-- `feedback` is a combinational `wire`.
-- Single `always @(posedge clk)` block; 8 non-blocking assignments to `crc[7:0]`.
-- Output `crc` is `output reg [7:0]`.
-- No `initial`, no `#` delays, no inferred latches.
+- `decoded` is a combinational `wire [N-1:0]`; no latch inferred.
+- Single `always @(posedge clk)` block for the output register.
+- No `initial`, no `#` delays.
 - Yosys `check -assert` must report 0 problems.
+- Expected cells: N DFFs (or SDFFEs), roughly 1 LUT per output bit from the shift.
 
 ## Verification tips (for Verifier)
 
-1. **Reset:** crc=0x00 after rst=1.
-2. **Hold:** en=0 leaves crc unchanged.
-3. **Zero byte (8 zeros):** starting from 0x00, crc stays 0x00.
-4. **Byte 0x01** (bits 1,0,0,0,0,0,0,0): crc → 0x5E. After only the first enabled
-   1-bit, crc is 0x8C.
-5. **Byte 0xFF** (8 ones): compute and compare against a Python reference.
-6. **Check string "123456789":** process all 72 bits LSB-first; final crc = 0xA1.
-   Python reference:
-   ```python
-   import crcmod
-   fn = crcmod.predefined.mkCrcFun('crc-8-maxim')
-   hex(fn(b'123456789'))  # → 0xa1
-   ```
-7. **Randomized:** random byte sequences against Python `crcmod` or manual bit-serial
-   reference: `crc ^= bit; if crc & 1: crc = (crc >> 1) ^ 0x8C; else: crc >>= 1`.
+1. **Reset:** out=0 after rst=1 regardless of in/en.
+2. **Hold:** en=0 leaves out unchanged.
+3. **All indices (N=8):** in=0..7, verify out = 1<<in after one en-cycle.
+4. **Hot bit exclusive:** popcount(out)==1 for every valid in when en=1.
+5. **Reset clears:** drive en=1 with in=5 (out=0x20), then rst=1, verify out=0x00.
+6. **Large N:** test with N=16, LOG2W=4 — all 16 indices.
+7. **Randomized:** random in values, compare out against (1 << in) in Python.

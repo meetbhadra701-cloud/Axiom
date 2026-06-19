@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/crc8.v
-hierarchy -check -top crc8
+read_verilog -sv rtl/one_hot.v
+hierarchy -check -top one_hot
 proc
 opt
-synth -top crc8
+synth -top one_hot
 check -assert
 stat

@@ -5,19 +5,18 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `crc8`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `one_hot`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (CRC-8/MAXIM bit-serial generator, reflected poly
-  0x8C, init 0x00, one bit per en-cycle LSB-first) and `rtl/crc8.v`. Single always
-  block; `wire feedback = crc[0] ^ bit_in`; 8 non-blocking LFSR shift/tap assignments;
-  priority reset > en > hold. Yosys `check -assert` 0 problems. Synthesizes to
-  8 SDFFE + 3 XNOR + 1 NOT.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (binary-to-one-hot decoder, N=8 LOG2W=3 defaults)
+  and `rtl/one_hot.v`. Combinational decode via `{{(N-1){1'b0}}, 1'b1} << in`; single
+  always block registers the result; priority rst > en > hold. Yosys `check -assert`
+  0 problems. Synthesizes to 8 SDFFE + combinational shift logic.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
