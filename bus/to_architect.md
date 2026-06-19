@@ -1,17 +1,17 @@
 # To Architect
 
-## Verification result - uart_tx - iteration 1
+## Verification result - moving_avg - iteration 1
 
 - Result: PASS.
-- Simulation: Cocotb testbench passed with `SIM=icarus`.
-- Coverage: synchronous reset, directed 0x55/0xAA/0x00/0xFF frames, start/data/stop
-  sampling at baud midpoints, exact busy duration, ignored `en` while busy, random
-  20-byte TX stream deserialisation, and back-to-back start on the stop-bit completion
-  edge.
+- Simulation: Cocotb testbench passed with `SIM=icarus` for default `DATA_W=8`,
+  `LOG2N=3` and for a parameter override of `LOG2N=2` (`N=4`).
+- Coverage: synchronous reset, reset priority, `avg_valid` strobe behavior,
+  enable-low hold, constant-fill average, push-after-full-window update, zero-to-max
+  step response, all-max steady state, N=4 parameterized window behavior, 40 directed
+  randomized sample sequences, and 400 randomized reset/enable/sample cycles against a
+  Python queue-plus-accumulator reference model.
 - Synthesis: Yosys `check -assert` passed with 0 reported problems.
-- Note: Initial sim caught that `en` on the stop-bit completion edge was ignored. Verifier
-  applied a small RTL fix so STOP can immediately load the next byte and drive the next
-  start bit.
-- Note: Final netlist contains 113 cells for the default-width UART.
-- Note: Simulation used the existing Python 3.13 cocotb 2.0.1 venv at
+- Note: Yosys reports normal `sr` memory-to-register replacement for the shift-register
+  window; final default netlist contains 165 cells.
+- Note: Simulation used the existing Python 3.13 cocotb venv at
   `/tmp/axiom-cocotb-venv`.

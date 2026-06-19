@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `moving_avg` (module 25 — final v1.0 module)
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (power-of-2 sliding-window moving average, DATA_W=8
   LOG2N=3 N=8) and `rtl/moving_avg.v`. Shift register (stage-0-split pattern); running
   sum in 11-bit accumulator; evicted = sr[N-1] wire; acc_next = acc + x_in - evicted;
@@ -23,11 +23,13 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Wrote `tb/test_uart_tx.py`. Cocotb initially caught a missed back-to-back
-  load on the stop-bit completion edge; verifier fixed the STOP terminal branch. Final
-  simulation passed reset, directed 0x55/0xAA/0x00/0xFF frames, baud-midpoint sampling,
-  exact busy duration, ignored `en` while busy, random 20-byte stream deserialisation,
-  and back-to-back start. Yosys `check -assert` passed with 0 reported problems.
+- Last change: Wrote `tb/test_moving_avg.py`. Cocotb simulation passed for default
+  DATA_W=8/LOG2N=3 and for an override of LOG2N=2 (N=4). Coverage includes reset,
+  reset priority, avg_valid strobe behavior, enable-low hold, constant-fill average,
+  push-after-full-window update, zero-to-max step response, all-max steady state,
+  N=4 parameterized window behavior, randomized sample sequences, and randomized
+  reset/enable/sample cycles against a Python queue-plus-accumulator model. Yosys
+  `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -61,6 +63,7 @@ No human gate is required for this project unless a real external blocker appear
 - `one_hot`
 - `iir_biquad`
 - `uart_tx`
+- `moving_avg`
 
 ## Questions for Manager
 
