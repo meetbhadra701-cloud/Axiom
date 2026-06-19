@@ -5,18 +5,18 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `one_hot`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `iir_biquad`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (binary-to-one-hot decoder, N=8 LOG2W=3 defaults)
-  and `rtl/one_hot.v`. Combinational decode via `{{(N-1){1'b0}}, 1'b1} << in`; single
-  always block registers the result; priority rst > en > hold. Yosys `check -assert`
-  0 problems. Synthesizes to 8 SDFFE + combinational shift logic.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (2nd-order IIR biquad Direct Form I, DATA_W=16
+  COEF_W=16 FRAC_W=14) and `rtl/iir_biquad.v`. Five signed multiplies into a 35-bit
+  accumulator; truncate by FRAC_W to DATA_W; single always block registers result and
+  updates x1/x2/y1/y2 delays; y_valid strobes with en. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
