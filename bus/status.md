@@ -5,18 +5,14 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `moving_avg` (module 25 — final v1.0 module)
-- Phase: `verified`
-- Last actor: Verifier
+- **STATUS: v1.0 COMPLETE — 25/25 modules verified on main**
+- Main commit: `7f139501082a`
+- Last module: `moving_avg` (module 25), verified and merged 2026-06-18
 
 ## Architect
 
-- Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (power-of-2 sliding-window moving average, DATA_W=8
-  LOG2N=3 N=8) and `rtl/moving_avg.v`. Shift register (stage-0-split pattern); running
-  sum in 11-bit accumulator; evicted = sr[N-1] wire; acc_next = acc + x_in - evicted;
-  avg_out = acc_next[10:3]; avg_valid strobes with en. Yosys `check -assert` 0 problems.
+- State: `v1.0 complete`
+- Vault index: `~/Axiom-vault/00-Index/axiom_v1_library_index.md`
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier
