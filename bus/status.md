@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `one_hot`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (binary-to-one-hot decoder, N=8 LOG2W=3 defaults)
   and `rtl/one_hot.v`. Combinational decode via `{{(N-1){1'b0}}, 1'b1} << in`; single
   always block registers the result; priority rst > en > hold. Yosys `check -assert`
@@ -23,12 +23,11 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Corrected the `0x01` byte vector note in `spec/spec.md`/`bus/to_verifier.md`
-  (`0x8C` after one bit, `0x5E` after the full byte), then wrote `tb/test_crc8.py`.
-  Cocotb simulation passed reset, reset priority, hold, zero byte, directed CRC vectors,
-  `"123456789"` check value `0xA1`, 50 randomized byte strings, and 400 randomized
-  reset/enable/bit cycles against a manual CRC-8/MAXIM reference. Yosys `check -assert`
-  passed with 0 reported problems.
+- Last change: Wrote `tb/test_one_hot.py`. Cocotb simulation passed default `N=8,
+  LOG2W=3` and override `N=16, LOG2W=4` runs covering reset, reset priority, hold,
+  directed indices, exhaustive all-index decode, one-hot exclusivity, reset clearing an
+  active output, and 500 randomized reset/enable/index cycles against a Python reference.
+  Yosys `check -assert` passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -59,6 +58,7 @@ No human gate is required for this project unless a real external blocker appear
 - `rr_arb`
 - `pipe_delay`
 - `crc8`
+- `one_hot`
 
 ## Questions for Manager
 

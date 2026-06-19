@@ -1,6 +1,6 @@
 # Makefile - Cocotb + Verilator
 SIM ?= icarus
-DUT ?= crc8
+DUT ?= one_hot
 TOPLEVEL_LANG ?= verilog
 .DEFAULT_GOAL := sim
 SIM_BUILD ?= /tmp/axiom-$(DUT)-sim_build
