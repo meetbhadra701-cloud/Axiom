@@ -5,19 +5,18 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `uart_tx`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `moving_avg` (module 25 — final v1.0 module)
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (8-N-1 UART TX, CLKS_PER_BIT=868, CLKDIV_W=10) and
-  `rtl/uart_tx.v`. 4-state FSM (IDLE/START/DATA/STOP) in a single always block; 10-bit
-  baud counter; 3-bit bit_idx; data latched on en&~busy; tx pre-set on each state
-  transition so it's stable for the full baud period; busy low in IDLE. Yosys
-  `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (power-of-2 sliding-window moving average, DATA_W=8
+  LOG2N=3 N=8) and `rtl/moving_avg.v`. Shift register (stage-0-split pattern); running
+  sum in 11-bit accumulator; evicted = sr[N-1] wire; acc_next = acc + x_in - evicted;
+  avg_out = acc_next[10:3]; avg_valid strobes with en. Yosys `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

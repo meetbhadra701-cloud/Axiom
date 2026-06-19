@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/uart_tx.v
-hierarchy -check -top uart_tx
+read_verilog -sv rtl/moving_avg.v
+hierarchy -check -top moving_avg
 proc
 opt
-synth -top uart_tx
+synth -top moving_avg
 check -assert
 stat

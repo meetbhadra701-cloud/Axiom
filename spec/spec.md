@@ -1,120 +1,95 @@
-# Spec — uart_tx (UART Transmitter)
+# Spec — moving_avg (Sliding-Window Moving Average)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 
 ## Purpose
 
-8-N-1 UART serial transmitter. Serialises one byte per transmission: 1 start bit (0),
-8 data bits (LSB first), 1 stop bit (1). Baud rate set by the `CLKS_PER_BIT` parameter.
-Busy flag prevents overrun; back-to-back transmissions begin on the cycle IDLE is re-entered.
+Power-of-2 sliding-window moving average. Maintains a shift register of the last N
+samples and a running sum, producing avg = sum / N each enabled cycle. Division by N
+is an exact right-shift (N must be a power of two). Registers avg_out with a valid strobe.
 
 ## Parameters
 
-| Parameter    | Default | Description |
+| Parameter | Default | Description |
 |---|---:|---|
-| `CLKS_PER_BIT` | 868 | Clock cycles per UART bit period (868 → 115200 baud at 100 MHz). |
-| `CLKDIV_W`     |  10 | Bit width of baud counter: must satisfy 2^CLKDIV_W > CLKS_PER_BIT. Explicit per library convention (no `$clog2`). |
+| `DATA_W` | 8  | Bit width of input/output samples (unsigned). |
+| `LOG2N`  | 3  | log₂ of the window length. Window N = 2^LOG2N = 8. |
 
-For simulation use small values, e.g. CLKS_PER_BIT=4, CLKDIV_W=2.
+`localparam N = 1 << LOG2N;`
+`localparam ACC_W = DATA_W + LOG2N;` — accumulator is just wide enough to hold N×max_sample.
 
 ## Ports
 
-| Port   | Direction | Width | Description |
+| Port       | Dir   | Width  | Description |
 |---|---|---:|---|
-| `clk`  | input  | 1 | Clock. |
-| `rst`  | input  | 1 | Synchronous, active-high reset. Returns to idle, tx=1. |
-| `en`   | input  | 1 | Load strobe. Ignored when `busy=1`. |
-| `data` | input  | 8 | Byte to transmit. Latched on the cycle `en=1 & ~busy`. |
-| `tx`   | output | 1 | UART serial output. Idles at 1 (mark). |
-| `busy` | output | 1 | High during transmission; accept new `en` only when low. |
+| `clk`      | input | 1      | Clock. |
+| `rst`      | input | 1      | Synchronous, active-high reset. Clears all state to 0. |
+| `en`       | input | 1      | Sample enable. Loads x_in and updates avg_out on each posedge when high. |
+| `x_in`     | input | DATA_W | Input sample (unsigned). |
+| `avg_out`  | output | DATA_W | Registered average output (truncated, unsigned). |
+| `avg_valid` | output | 1     | Strobes high for 1 cycle when avg_out is fresh (mirrors en). |
 
 ## Behaviour
 
-All state changes on `posedge clk`. Synchronous active-high reset.
+All state changes on `posedge clk`. Priority: **reset > enable > hold**.
 
-### State machine (2-bit, one-hot-compatible encoding)
+**On each en=1 cycle:**
 
-```
-IDLE  (2'd0): tx=1, busy=0. On en: latch data, tx←0, busy←1 → START.
-START (2'd1): tx=0 (start bit). Count CLKS_PER_BIT cycles → DATA (bit_idx=0).
-DATA  (2'd2): tx=data_reg[bit_idx]. Count CLKS_PER_BIT cycles per bit.
-              bit_idx 0→7; after bit 7 → STOP (tx←1).
-STOP  (2'd3): tx=1 (stop bit). Count CLKS_PER_BIT cycles → IDLE (busy←0).
-```
+1. Read `evicted = sr[N-1]` (oldest sample, wire — combinational).
+2. Compute `acc_next = acc + x_in − evicted` (ACC_W-bit unsigned arithmetic).
+3. Register: `acc <= acc_next`, `avg_out <= acc_next[ACC_W-1:LOG2N]`, `avg_valid <= 1`.
+4. Shift register: `sr[0] <= x_in`; `sr[g] <= sr[g-1]` for g = 1..N-1 (stage 0 explicit,
+   stages 1..N-1 via generate loop — follows stage-zero-split convention).
 
-### Baud counter
+**On en=0:** `avg_valid <= 0`; all other state holds.
 
-`baud_cnt` counts 0 to `CLKS_PER_BIT − 1` for each bit period. On the cycle
-`baud_cnt == CLKDIV_MAX` (where `CLKDIV_MAX = CLKS_PER_BIT − 1`), advance state.
+**On rst:** all `sr` registers, `acc`, `avg_out`, `avg_valid` cleared to 0.
 
-`CLKDIV_MAX` is a `localparam [CLKDIV_W-1:0]`.
-
-### Bit order
-
-LSB first. `data_reg[0]` is the first data bit driven after the start bit.
-
-### Transmission timing (CLKS_PER_BIT = N)
-
-```
-Cycle 0         : en=1 → latch data, tx←0, busy←1, state←START
-Cycles 1..N     : START state, tx=0  (N cycles)
-Cycles N+1..2N  : DATA, bit 0        (N cycles)
-Cycles 2N+1..3N : DATA, bit 1        (N cycles)
-...
-Cycles 8N+1..9N : DATA, bit 7        (N cycles)
-Cycles 9N+1..10N: STOP, tx=1         (N cycles)
-Cycle 10N+1     : IDLE, busy←0
-```
-
-Total = 10N cycles from en-pulse to busy going low.
-
-### Back-to-back
-
-`busy` goes low on the cycle IDLE is entered. If `en=1` on that same cycle, a new
-transmission begins immediately (no idle gap).
+**Fill-in behaviour:** for the first N samples after reset, the window is padded with zeros.
+Average is the sum of loaded samples divided by N (not by the number of samples loaded),
+so results are diluted until the window is full. This is expected behaviour; no
+separate valid-after-N-samples signal is provided.
 
 ## Synthesis notes
 
-- Single `always @(posedge clk)` block implementing the state machine.
+- `evicted` is a `wire [DATA_W-1:0]` reading `sr[N-1]` combinationally.
+- `acc_next` is a `wire [ACC_W-1:0]` with the add/subtract.
+- Stage 0 of shift register is an explicit `always @(posedge clk)` block (not in the
+  generate loop) to keep `sr[g-1]` valid at g=1 without a `sr[-1]` reference.
+- Generate loop covers g=1..N-1.
+- Three separate always blocks: shift-reg stage 0, shift-reg stages 1..N-1 (generate),
+  accumulator+output. All use the same `rst > en > hold` priority.
 - No `initial`, no `#` delays, no inferred latches.
-- All case paths either assign next state or hold (register hold, not latch).
-- `default` case resets to IDLE.
 - Yosys `check -assert` must report 0 problems.
+
+## Known test vectors (DATA_W=8, LOG2N=3, N=8)
+
+- **After reset:** avg_out=0.
+- **8 × x_in=8 (fill window):** acc=64, avg_out=8.
+- **Push x_in=16 after full window of 8s:** acc = 64+16-8 = 72, avg_out=9.
+- **All zeros:** avg_out stays 0.
+- **All 255s (max input):** acc = 8×255 = 2040 < 2^11 ✓; avg_out = 2040>>3 = 255.
 
 ## Verification tips (for Verifier)
 
-Use CLKS_PER_BIT=4, CLKDIV_W=2 in simulation (40 cycles per byte). Override params in
-cocotb's `plusargs` or `COCOTB_PARAM_*` environment.
-
-1. **Reset:** tx=1, busy=0 after rst.
-2. **Busy flag:** en ignored when busy=1 — no double-load.
-3. **Transmit 0x55 (01010101b):** bits LSB-first = 1,0,1,0,1,0,1,0. Capture tx on each
-   baud-period midpoint (cycle N//2 into each bit) and compare:
-   `[0, 1,0,1,0,1,0,1,0, 1]` = start, data[0..7], stop.
-4. **Transmit 0xAA (10101010b):** bits = 0,1,0,1,0,1,0,1.
-5. **Transmit 0x00 and 0xFF:** corner cases.
-6. **Busy duration:** assert busy=1 from cycle after en until after 10*CLKS_PER_BIT cycles.
-7. **Back-to-back:** send 5 bytes with no idle gap between them.
-8. **Randomized:** 20 random bytes; deserialise tx stream and compare to original.
-
-Python deserialiser for the tx stream:
-```python
-def uart_rx_sample(tx_trace, clks_per_bit):
-    """Sample tx_trace at baud midpoints. Returns list of received bytes."""
-    i = 0
-    rx_bytes = []
-    while i < len(tx_trace):
-        if tx_trace[i] == 0:  # falling edge = start bit
-            i += clks_per_bit // 2  # mid start bit
-            bits = []
-            for _ in range(8):
-                i += clks_per_bit
-                if i < len(tx_trace):
-                    bits.append(tx_trace[i])
-            byte = sum(b << k for k, b in enumerate(bits))
-            rx_bytes.append(byte)
-            i += clks_per_bit  # skip stop bit
-        else:
-            i += 1
-    return rx_bytes
-```
+1. **Reset:** avg_out=0, avg_valid=0.
+2. **Hold:** en=0 → avg_out, avg_valid, acc, sr all unchanged.
+3. **avg_valid strobe:** high exactly on en=1 cycles, low otherwise.
+4. **Constant input:** load N copies of value V → avg_out = V.
+5. **Sliding transition:** window full of 0 → start loading 255 one at a time. Verify
+   avg_out steps up by 255/N = 31 (truncated) per en cycle.
+6. **Overflow check:** max input 255 × N=8 = 2040, fits in ACC_W=11 bits.
+7. **Window length:** LOG2N=2 (N=4) parametrize; verify avg over 4-sample window.
+8. **Randomized:** 200 samples; compare to a Python reference:
+   ```python
+   from collections import deque
+   def moving_avg_ref(samples, n, data_w=8):
+       window = deque([0]*n, maxlen=n)
+       acc = 0
+       avgs = []
+       for s in samples:
+           acc = acc + s - window[0]  # window[0] is oldest
+           window.append(s)
+           avgs.append(acc >> int(math.log2(n)))
+       return avgs
+   ```

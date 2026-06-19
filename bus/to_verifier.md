@@ -1,56 +1,45 @@
 # To Verifier
 
-v1 of `rtl/uart_tx.v` ready, spec in `spec/spec.md` (8-N-1 UART transmitter). Ready for simulation.
+v1 of `rtl/moving_avg.v` ready, spec in `spec/spec.md` (sliding-window moving average). Ready for simulation.
 
-- Module: `uart_tx`
-- Top-level: `uart_tx`
-- Ports: `clk`, `rst` (sync active-high), `en`, `data[7:0]`, `tx` (reg), `busy` (reg)
-- Default params: CLKS_PER_BIT=868, CLKDIV_W=10. Use CLKS_PER_BIT=4, CLKDIV_W=2 for sim.
-- Format: 8-N-1. Start=0, 8 data bits LSB-first, Stop=1.
-- Busy: high from en-load until 10*CLKS_PER_BIT cycles later (IDLE re-entered).
-- en ignored when busy=1 (no overrun).
-- Yosys `check -assert`: 0 problems. ~86 cells.
+- Module: `moving_avg` — **this is module 25, the final module in the v1.0 library.**
+- Top-level: `moving_avg`
+- Ports: `clk`, `rst` (sync active-high), `en`, `x_in[DATA_W-1:0]` unsigned, `avg_out[DATA_W-1:0]` unsigned, `avg_valid`
+- Default params: DATA_W=8, LOG2N=3 (N=8 window).
+- Running sum maintained in ACC_W=11-bit accumulator (no overflow for DATA_W=8, N=8).
+- avg_out = acc >> LOG2N (bit-slice [10:3], i.e., the upper 8 bits).
+- Shift register: sr[0]=newest, sr[N-1]=oldest. Stage-zero-split pattern (generate g=1..N-1).
+- avg_valid strobes high on each en=1 cycle.
+- Fill-in: first N samples after reset are padded with zeros (avg diluted until window full).
+- Yosys `check -assert`: 0 problems.
 - Iteration: 1
 
-Timing (CLKS_PER_BIT = N):
-```
-Cycle 0:     en=1 fired  → tx=0, busy=1, state=START
-Cycles 0..N-1:  START state, tx=0 (baud_cnt 0..N-1)
-Cycle N:        → DATA, bit_idx=0, tx=data[0] (baud_cnt reset to 0)
-Cycles N..2N-1: DATA bit 0 (baud_cnt 0..N-1)
-...
-Cycles 9N..10N-1: STOP state, tx=1
-Cycle 10N:        → IDLE, busy=0
-```
+Key test vectors (DATA_W=8, LOG2N=3, N=8):
+1. Reset → avg_out=0, avg_valid=0.
+2. en=0 → avg_out unchanged, avg_valid=0.
+3. 8 × x_in=8: avg_out=8 after the 8th en-cycle.
+4. Push x_in=16 after full window of 8s: avg_out=9 (acc=72, 72>>3=9).
+5. All 255s: avg_out=255 (acc=2040, no overflow in 11 bits).
+6. Constant-to-step: window of 0s, then 8 × 255 pushed in one at a time.
+   avg_out steps: 31, 63, 95, 127, 159, 191, 223, 255 (each += 31 = 255>>3).
 
-Key test vectors (CLKS_PER_BIT=4):
-1. Reset → tx=1, busy=0.
-2. Transmit 0x55 (01010101b): TX sequence = 0, 1,0,1,0,1,0,1,0, 1 (start, 8 data, stop).
-3. Transmit 0xAA (10101010b): TX = 0, 0,1,0,1,0,1,0,1, 1.
-4. Transmit 0x00: TX = 0, 0,0,0,0,0,0,0,0, 1.
-5. Transmit 0xFF: TX = 0, 1,1,1,1,1,1,1,1, 1.
-6. busy spans exactly 10*CLKS_PER_BIT=40 cycles.
-7. en during busy: data not overwritten, no corruption.
-8. Back-to-back: en=1 on cycle 40 → second transmission begins immediately.
-9. Randomized: 20 random bytes, deserialise tx stream, compare.
-
-Python tx-stream deserialiser (see spec for full version):
+Python reference:
 ```python
-def uart_rx_sample(tx_trace, clks_per_bit):
-    i = 0; rx_bytes = []
-    while i < len(tx_trace):
-        if tx_trace[i] == 0:          # start bit detected
-            i += clks_per_bit // 2   # advance to mid-start
-            bits = []
-            for _ in range(8):
-                i += clks_per_bit
-                bits.append(tx_trace[i] if i < len(tx_trace) else 1)
-            rx_bytes.append(sum(b << k for k, b in enumerate(bits)))
-            i += clks_per_bit         # skip stop bit
-        else:
-            i += 1
-    return rx_bytes
+from collections import deque
+import math
+
+def moving_avg_ref(samples, log2n, data_w=8):
+    n = 1 << log2n
+    window = deque([0]*n, maxlen=n)
+    acc = 0
+    avgs = []
+    for s in samples:
+        acc = acc + s - window[0]   # window[0] is oldest (left side of deque)
+        window.append(s)            # appending pushes oldest out of window[0]
+        avgs.append(acc >> log2n)
+    return avgs
 ```
 
-Cocotb note: use `COCOTB_PARAM_CLKS_PER_BIT=4` and `COCOTB_PARAM_CLKDIV_W=2`
-(or equivalent plusargs) to reduce sim time. All port names are safe (no Python keywords).
+Parametrize: also test LOG2N=2 (N=4), DATA_W=8 — verify 4-sample window.
+
+Cocotb note: all port names safe (no Python keywords). Drive x_in as non-negative int.
