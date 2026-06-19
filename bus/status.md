@@ -6,13 +6,13 @@ No human gate is required for this project unless a real external blocker appear
 ## Current
 
 - Module: `crc8`
-- Phase: `awaiting_verification`
-- Last actor: Architect
+- Phase: `verified`
+- Last actor: Verifier
 
 ## Architect
 
 - Iteration: 1
-- State: `awaiting_verification`
+- State: `verified`
 - Last change: Wrote `spec/spec.md` (CRC-8/MAXIM bit-serial generator, reflected poly
   0x8C, init 0x00, one bit per en-cycle LSB-first) and `rtl/crc8.v`. Single always
   block; `wire feedback = crc[0] ^ bit_in`; 8 non-blocking LFSR shift/tap assignments;
@@ -24,12 +24,12 @@ No human gate is required for this project unless a real external blocker appear
 
 - Iteration: 1
 - State: `verified`
-- Last change: Split pipe stage 0 out of the generate loop to avoid a nonportable
-  unreachable `pipe[-1]` elaboration warning, then wrote `tb/test_pipe_delay.py`.
-  Cocotb simulation passed default DEPTH=4 and override DEPTH=1 runs covering reset,
-  reset priority, hold/freeze, pulse latency, sequence latency, enable-gated paused
-  latency, DEPTH=1 behavior, and 600 randomized reset/enable/data cycles against a
-  Python stage model. Yosys `check -assert` passed with 0 reported problems.
+- Last change: Corrected the `0x01` byte vector note in `spec/spec.md`/`bus/to_verifier.md`
+  (`0x8C` after one bit, `0x5E` after the full byte), then wrote `tb/test_crc8.py`.
+  Cocotb simulation passed reset, reset priority, hold, zero byte, directed CRC vectors,
+  `"123456789"` check value `0xA1`, 50 randomized byte strings, and 400 randomized
+  reset/enable/bit cycles against a manual CRC-8/MAXIM reference. Yosys `check -assert`
+  passed with 0 reported problems.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the
@@ -59,6 +59,7 @@ No human gate is required for this project unless a real external blocker appear
 - `prio_enc`
 - `rr_arb`
 - `pipe_delay`
+- `crc8`
 
 ## Questions for Manager
 
