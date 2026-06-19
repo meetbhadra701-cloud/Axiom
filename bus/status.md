@@ -5,9 +5,11 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- **STATUS: v1.0 COMPLETE — 25/25 modules verified on main**
-- Main commit: `7f139501082a`
+- **STATUS: v1.0 POST-AUDIT CLEAN — 25/25 tests pass under correct invocation**
+- Post-audit fix commit: current branch head after merge to `main`
 - Last module: `moving_avg` (module 25), verified and merged 2026-06-18
+- Post-audit branch: `fix/v1.0-post-audit`
+- Audit reference: `/Users/meetbhadra/ FPGA project/verifier-vault/AUDIT_v1.0.md`
 
 ## Architect
 
@@ -18,14 +20,18 @@ No human gate is required for this project unless a real external blocker appear
 ## Verifier
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `tb/test_moving_avg.py`. Cocotb simulation passed for default
-  DATA_W=8/LOG2N=3 and for an override of LOG2N=2 (N=4). Coverage includes reset,
-  reset priority, avg_valid strobe behavior, enable-low hold, constant-fill average,
-  push-after-full-window update, zero-to-max step response, all-max steady state,
-  N=4 parameterized window behavior, randomized sample sequences, and randomized
-  reset/enable/sample cycles against a Python queue-plus-accumulator model. Yosys
-  `check -assert` passed with 0 reported problems.
+- State: `post-audit clean`
+- Last change: Added `tb/run_uart_tx.py`, a self-contained cocotb runner for `uart_tx`
+  that passes `CLKS_PER_BIT=4` and `CLKDIV_W=2` into the DUT build, uses `SIM=icarus`,
+  sets timescale to `1ns/1ps`, points `PYTHONPATH` at `tb/`, and writes sim output to
+  `/tmp/axiom-uart_tx-sim_build`. Result: `TESTS=1 PASS=1 FAIL=0 SKIP=0`. Local note:
+  the shell has no bare `python`; `python3 tb/run_uart_tx.py` passes by re-execing into
+  the cocotb venv, and `PATH="/tmp/axiom-cocotb-venv/bin:$PATH" python tb/run_uart_tx.py`
+  passes exactly.
+- Post-audit advisory acknowledgements: `sine_lut` ROM `initial` block is approved;
+  `iir_biquad` DSP inference is a future target-synthesis check; `fifo` pointer logic
+  had no observed simulation failure; Makefile path-space breakage is acknowledged and
+  Python runners are the workaround.
 - Simulation layout: run from repo root with `tb/` on `PYTHONPATH`; simulator build
   output goes to `/tmp/axiom-$(DUT)-sim_build` to avoid the workspace path space.
 - Simulator used: `SIM=icarus` by default. `SIM=verilator` reaches C++ compile but the

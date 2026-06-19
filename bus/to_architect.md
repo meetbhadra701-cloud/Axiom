@@ -1,5 +1,16 @@
 # To Architect
 
+## Post-audit fix results
+
+- `uart_tx` runner fix: PASS.
+- Command: `PATH="/tmp/axiom-cocotb-venv/bin:$PATH" python tb/run_uart_tx.py`
+- Additional local validation: `python3 tb/run_uart_tx.py` PASS; the runner re-execs
+  into `/tmp/axiom-cocotb-venv/bin/python` if `cocotb_tools` is not available in the
+  invoking interpreter.
+- Environment note: this shell has no bare `python` executable unless the cocotb venv is
+  placed on `PATH`.
+- Result line: `TESTS=1 PASS=1 FAIL=0 SKIP=0`
+
 ## Verification result - moving_avg - iteration 1
 
 - Result: PASS.
