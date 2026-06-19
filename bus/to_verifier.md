@@ -16,7 +16,8 @@ Key test vectors (all from init crc=0x00):
 1. Reset → crc=0x00.
 2. en=0 → crc unchanged.
 3. 8 zero bits (byte 0x00) → crc stays 0x00.
-4. Byte 0x01 (bits 1,0,0,0,0,0,0,0 LSB-first, 8 en-cycles) → crc=0x8C.
+4. Single leading 1-bit from reset → crc=0x8C; full byte 0x01
+   (bits 1,0,0,0,0,0,0,0 LSB-first, 8 en-cycles) → crc=0x5E.
 5. String "123456789" (72 bits LSB-first) → crc=0xA1.
 
 Python reference for random byte sequences:

@@ -58,9 +58,8 @@ positions 2, 3, and 7 match the reflected polynomial 0x8C (= 10001100b; bits 7,3
 **Accumulating a byte:** drive 8 consecutive `en=1` cycles with `bit_in` = byte[0],
 byte[1], …, byte[7] (LSB first).
 
-**Known test vector:** CRC of single byte 0x01 (bits: 1,0,0,0,0,0,0,0 LSB-first) = 0x8C.
-After processing the single leading 1-bit, crc = 0x8C; the remaining 7 zero bits
-leave crc unchanged (feedback=0 on each).
+**Known test vector:** after processing a single leading 1-bit from reset, crc = 0x8C.
+After processing the full byte 0x01 (bits: 1,0,0,0,0,0,0,0 LSB-first), crc = 0x5E.
 
 ## Synthesis notes
 
@@ -75,8 +74,8 @@ leave crc unchanged (feedback=0 on each).
 1. **Reset:** crc=0x00 after rst=1.
 2. **Hold:** en=0 leaves crc unchanged.
 3. **Zero byte (8 zeros):** starting from 0x00, crc stays 0x00.
-4. **Byte 0x01** (bits 1,0,0,0,0,0,0,0): crc → 0x8C (first bit sets the polynomial;
-   remaining 7 zero bits leave crc = 0x8C).
+4. **Byte 0x01** (bits 1,0,0,0,0,0,0,0): crc → 0x5E. After only the first enabled
+   1-bit, crc is 0x8C.
 5. **Byte 0xFF** (8 ones): compute and compare against a Python reference.
 6. **Check string "123456789":** process all 72 bits LSB-first; final crc = 0xA1.
    Python reference:
