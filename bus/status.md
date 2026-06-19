@@ -5,18 +5,19 @@ No human gate is required for this project unless a real external blocker appear
 
 ## Current
 
-- Module: `iir_biquad`
-- Phase: `verified`
-- Last actor: Verifier
+- Module: `uart_tx`
+- Phase: `awaiting_verification`
+- Last actor: Architect
 
 ## Architect
 
 - Iteration: 1
-- State: `verified`
-- Last change: Wrote `spec/spec.md` (2nd-order IIR biquad Direct Form I, DATA_W=16
-  COEF_W=16 FRAC_W=14) and `rtl/iir_biquad.v`. Five signed multiplies into a 35-bit
-  accumulator; truncate by FRAC_W to DATA_W; single always block registers result and
-  updates x1/x2/y1/y2 delays; y_valid strobes with en. Yosys `check -assert` 0 problems.
+- State: `awaiting_verification`
+- Last change: Wrote `spec/spec.md` (8-N-1 UART TX, CLKS_PER_BIT=868, CLKDIV_W=10) and
+  `rtl/uart_tx.v`. 4-state FSM (IDLE/START/DATA/STOP) in a single always block; 10-bit
+  baud counter; 3-bit bit_idx; data latched on en&~busy; tx pre-set on each state
+  transition so it's stable for the full baud period; busy low in IDLE. Yosys
+  `check -assert` 0 problems.
 - ARCHITECT_VAULT_PATH: ~/Axiom-vault
 
 ## Verifier

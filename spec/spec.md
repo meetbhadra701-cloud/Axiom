@@ -1,120 +1,120 @@
-# Spec — iir_biquad (2nd-Order IIR Biquad Filter)
+# Spec — uart_tx (UART Transmitter)
 
 **Status:** authoritative. Ground truth for Architect and Verifier.
 
 ## Purpose
 
-Registered 2nd-order IIR biquad filter section, Direct Form I, signed fixed-point.
-Implements the difference equation:
-
-```
-y[n] = b0·x[n] + b1·x[n-1] + b2·x[n-2] − a1·y[n-1] − a2·y[n-2]
-```
-
-One new output sample per enabled clock cycle (latency = 1 enabled cycle). Used to
-build low-pass, high-pass, band-pass, and notch filters by cascading sections.
+8-N-1 UART serial transmitter. Serialises one byte per transmission: 1 start bit (0),
+8 data bits (LSB first), 1 stop bit (1). Baud rate set by the `CLKS_PER_BIT` parameter.
+Busy flag prevents overrun; back-to-back transmissions begin on the cycle IDLE is re-entered.
 
 ## Parameters
 
-| Parameter | Default | Description |
+| Parameter    | Default | Description |
 |---|---:|---|
-| `DATA_W` | 16 | Bit width of input/output samples (signed two's-complement). |
-| `COEF_W` | 16 | Bit width of coefficients (signed two's-complement). |
-| `FRAC_W` | 14 | Fractional bits in coefficients. Coefficients are in Q1.FRAC_W format. |
+| `CLKS_PER_BIT` | 868 | Clock cycles per UART bit period (868 → 115200 baud at 100 MHz). |
+| `CLKDIV_W`     |  10 | Bit width of baud counter: must satisfy 2^CLKDIV_W > CLKS_PER_BIT. Explicit per library convention (no `$clog2`). |
 
-The accumulator width is derived internally as `ACC_W = DATA_W + COEF_W + 3` (3 guard
-bits for summing 5 products without overflow). This is a `localparam` — not a port
-parameter — so it cannot be misconfigured.
-
-## Coefficient format
-
-Coefficients are signed fixed-point with FRAC_W fractional bits (implicit binary point
-at position FRAC_W from the right). With defaults DATA_W=16, COEF_W=16, FRAC_W=14:
-
-- +1.0 → 16384 (= 2^14)
-- -1.0 → -16384
-- +2.0 → 32767 (saturates at 2^15 − 1; coefficients ≥ 2.0 require COEF_W > 16)
-- Range: approximately −2.0 to +1.99994
-
-This range covers all standard biquad coefficients produced by common design tools
-(Butterworth, Chebyshev, notch, etc.).
+For simulation use small values, e.g. CLKS_PER_BIT=4, CLKDIV_W=2.
 
 ## Ports
 
-| Port    | Dir   | Width   | Description |
+| Port   | Direction | Width | Description |
 |---|---|---:|---|
-| `clk`   | input | 1       | Clock. |
-| `rst`   | input | 1       | Synchronous, active-high reset. Clears all state and `y_out` to 0. |
-| `en`    | input | 1       | Sample enable. New output computed and registered each cycle en=1. |
-| `x_in`  | input | DATA_W  | Input sample (signed). |
-| `b0`    | input | COEF_W  | Feed-forward coefficient (signed). |
-| `b1`    | input | COEF_W  | Feed-forward coefficient (signed). |
-| `b2`    | input | COEF_W  | Feed-forward coefficient (signed). |
-| `a1`    | input | COEF_W  | Feed-back coefficient (signed). Note: subtracted in the equation. |
-| `a2`    | input | COEF_W  | Feed-back coefficient (signed). Note: subtracted in the equation. |
-| `y_out` | output | DATA_W | Filtered output sample (signed, registered). |
-| `y_valid` | output | 1  | Pulses high for 1 cycle to indicate y_out is fresh. Goes low when en=0. |
+| `clk`  | input  | 1 | Clock. |
+| `rst`  | input  | 1 | Synchronous, active-high reset. Returns to idle, tx=1. |
+| `en`   | input  | 1 | Load strobe. Ignored when `busy=1`. |
+| `data` | input  | 8 | Byte to transmit. Latched on the cycle `en=1 & ~busy`. |
+| `tx`   | output | 1 | UART serial output. Idles at 1 (mark). |
+| `busy` | output | 1 | High during transmission; accept new `en` only when low. |
 
 ## Behaviour
 
-All state changes on `posedge clk`. Priority: **reset > enable > hold**.
+All state changes on `posedge clk`. Synchronous active-high reset.
 
-**On reset:** x1, x2, y1, y2, y_out all cleared to 0; y_valid cleared to 0.
+### State machine (2-bit, one-hot-compatible encoding)
 
-**On en=1:**
-1. Compute `acc = b0*x_in + b1*x1 + b2*x2 − a1*y1 − a2*y2` at full ACC_W precision.
-2. Truncate: `acc_trunc = acc[FRAC_W+DATA_W-1 : FRAC_W]` — discards fractional bits.
-3. Register: `y_out <= acc_trunc; y_valid <= 1`.
-4. Update delays: `x2<=x1; x1<=x_in; y2<=y1; y1<=acc_trunc`.
+```
+IDLE  (2'd0): tx=1, busy=0. On en: latch data, tx←0, busy←1 → START.
+START (2'd1): tx=0 (start bit). Count CLKS_PER_BIT cycles → DATA (bit_idx=0).
+DATA  (2'd2): tx=data_reg[bit_idx]. Count CLKS_PER_BIT cycles per bit.
+              bit_idx 0→7; after bit 7 → STOP (tx←1).
+STOP  (2'd3): tx=1 (stop bit). Count CLKS_PER_BIT cycles → IDLE (busy←0).
+```
 
-**On en=0:** y_valid goes low; all delay registers and y_out hold their values.
+### Baud counter
 
-Feedback uses the **truncated** result `acc_trunc` (same value as y_out), not the full
-accumulator. This is standard for fixed-point IIR and introduces only quantization
-noise, not extra pipeline registers.
+`baud_cnt` counts 0 to `CLKS_PER_BIT − 1` for each bit period. On the cycle
+`baud_cnt == CLKDIV_MAX` (where `CLKDIV_MAX = CLKS_PER_BIT − 1`), advance state.
+
+`CLKDIV_MAX` is a `localparam [CLKDIV_W-1:0]`.
+
+### Bit order
+
+LSB first. `data_reg[0]` is the first data bit driven after the start bit.
+
+### Transmission timing (CLKS_PER_BIT = N)
+
+```
+Cycle 0         : en=1 → latch data, tx←0, busy←1, state←START
+Cycles 1..N     : START state, tx=0  (N cycles)
+Cycles N+1..2N  : DATA, bit 0        (N cycles)
+Cycles 2N+1..3N : DATA, bit 1        (N cycles)
+...
+Cycles 8N+1..9N : DATA, bit 7        (N cycles)
+Cycles 9N+1..10N: STOP, tx=1         (N cycles)
+Cycle 10N+1     : IDLE, busy←0
+```
+
+Total = 10N cycles from en-pulse to busy going low.
+
+### Back-to-back
+
+`busy` goes low on the cycle IDLE is entered. If `en=1` on that same cycle, a new
+transmission begins immediately (no idle gap).
 
 ## Synthesis notes
 
-- `acc` and `acc_trunc` are combinational `wire`s.
-- All inputs are declared `signed`; Verilog uses signed multiplication automatically.
-- `localparam ACC_W = DATA_W + COEF_W + 3;`
-- Single `always @(posedge clk)` block for all state.
+- Single `always @(posedge clk)` block implementing the state machine.
 - No `initial`, no `#` delays, no inferred latches.
+- All case paths either assign next state or hold (register hold, not latch).
+- `default` case resets to IDLE.
 - Yosys `check -assert` must report 0 problems.
-
-## Known test vectors
-
-**Identity filter** (b0=2^FRAC_W, b1=b2=a1=a2=0 → pass-through with gain 1):
-- x_in = 100 → y_out = 100 after 1 enabled cycle.
-
-**Half-gain** (b0=2^(FRAC_W−1), others=0):
-- x_in = 1000 → y_out = 500.
-- x_in = 1001 → y_out = 500 (truncation, not rounding).
-
-**DC blocker** (approximation for 16 kHz audio):
-- b0=16384, b1=-32768, b2=16384, a1=-31130, a2=14746
-- Verify step response decays to zero.
 
 ## Verification tips (for Verifier)
 
-1. **Reset:** all outputs 0 after rst.
-2. **Hold:** en=0 → y_out, y_valid, delays all unchanged.
-3. **y_valid strobe:** y_valid=1 exactly on cycles where en=1; 0 otherwise.
-4. **Identity:** b0=16384, others=0 → y_out == x_in after 1 en-cycle.
-5. **Half-gain:** b0=8192, others=0 → y_out == x_in >> 1 (truncated).
-6. **Impulse response:** for a non-trivial filter (DC blocker), compute a 50-sample
-   Python reference and compare cycle-by-cycle:
-   ```python
-   def biquad_ref(b, a, xs, frac_w=14):
-       scale = 1 << frac_w
-       x1 = x2 = y1 = y2 = 0
-       ys = []
-       for x in xs:
-           acc = b[0]*x + b[1]*x1 + b[2]*x2 - a[0]*y1 - a[1]*y2
-           # Truncate toward negative infinity (arithmetic right shift)
-           y = acc >> frac_w  # Python >> is arithmetic
-           ys.append(y)
-           x2, x1, y2, y1 = x1, x, y1, y
-       return ys
-   ```
-7. **Randomized:** random coefficients + random sample sequences, compare to reference.
+Use CLKS_PER_BIT=4, CLKDIV_W=2 in simulation (40 cycles per byte). Override params in
+cocotb's `plusargs` or `COCOTB_PARAM_*` environment.
+
+1. **Reset:** tx=1, busy=0 after rst.
+2. **Busy flag:** en ignored when busy=1 — no double-load.
+3. **Transmit 0x55 (01010101b):** bits LSB-first = 1,0,1,0,1,0,1,0. Capture tx on each
+   baud-period midpoint (cycle N//2 into each bit) and compare:
+   `[0, 1,0,1,0,1,0,1,0, 1]` = start, data[0..7], stop.
+4. **Transmit 0xAA (10101010b):** bits = 0,1,0,1,0,1,0,1.
+5. **Transmit 0x00 and 0xFF:** corner cases.
+6. **Busy duration:** assert busy=1 from cycle after en until after 10*CLKS_PER_BIT cycles.
+7. **Back-to-back:** send 5 bytes with no idle gap between them.
+8. **Randomized:** 20 random bytes; deserialise tx stream and compare to original.
+
+Python deserialiser for the tx stream:
+```python
+def uart_rx_sample(tx_trace, clks_per_bit):
+    """Sample tx_trace at baud midpoints. Returns list of received bytes."""
+    i = 0
+    rx_bytes = []
+    while i < len(tx_trace):
+        if tx_trace[i] == 0:  # falling edge = start bit
+            i += clks_per_bit // 2  # mid start bit
+            bits = []
+            for _ in range(8):
+                i += clks_per_bit
+                if i < len(tx_trace):
+                    bits.append(tx_trace[i])
+            byte = sum(b << k for k, b in enumerate(bits))
+            rx_bytes.append(byte)
+            i += clks_per_bit  # skip stop bit
+        else:
+            i += 1
+    return rx_bytes
+```

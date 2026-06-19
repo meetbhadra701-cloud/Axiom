@@ -1,10 +1,10 @@
 # Yosys synthesis self-check for the active module (CLAUDE.md §3, objective (c)).
 # Run: yosys -s synth/check.ys
 
-read_verilog -sv rtl/iir_biquad.v
-hierarchy -check -top iir_biquad
+read_verilog -sv rtl/uart_tx.v
+hierarchy -check -top uart_tx
 proc
 opt
-synth -top iir_biquad
+synth -top uart_tx
 check -assert
 stat
